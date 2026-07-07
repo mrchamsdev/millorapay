@@ -198,7 +198,7 @@ class ExpenseCard extends StatelessWidget {
             const SizedBox(width: 8),
             // Amount
             Text(
-              '₹${expense.amount.toStringAsFixed(2)}',
+              '${expense.currencySymbol}${expense.amount.toStringAsFixed(2)}',
               style: AppTextStyles.amount.copyWith(
                 fontSize: 12.sp,
                 fontWeight: FontWeight.w800,

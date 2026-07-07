@@ -2727,11 +2727,18 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
             (val) => setState(() => _idProofType = val),
           ),
         ),
-        GoldDetailInputField(
+       /* GoldDetailInputField(
           label: 'Id Proof Upload',
           value: _idProofImagePath?.split('/').last,
           hint: 'No file chosen',
           onTap: () => _pickImage(true),
+        ),*/
+
+        _buildImagePickerField(
+          label: 'Id Proof Upload',
+          localPath: _idProofImagePath,
+          networkUrl: widget.person?.idProofImage,
+          onEdit: () => _pickImage(true),
         ),
         GoldDetailInputField(
           label: 'Address',
@@ -2860,13 +2867,22 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
             (val) => setState(() => _witnessIdProofType = val),
           ),
         ),
-        GoldDetailInputField(
+        /*GoldDetailInputField(
           label: 'Witness Id Proof Upload',
           value: _witnessIdProofImagePath?.split('/').last,
           hint: 'No file chosen',
           onTap: () => _pickImage(false),
           showBottomBorder: false,
         ),
+        */
+        _buildImagePickerField(
+          label: 'Witness Id Proof Upload',
+          localPath: _witnessIdProofImagePath,
+          networkUrl: widget.person?.witnessIdProofImage,
+          onEdit: () => _pickImage(false),
+          showBottomBorder: false,
+        ),
+
       ],
     );
   }
@@ -2971,11 +2987,19 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
                 hintText: 'Enter period',
                 onDropdownTap: () => _showInterestPeriodPicker(_loanForms[i]),
               ),
-              GoldDetailInputField(
+              /*GoldDetailInputField(
                 label: 'Agreement Image',
                 value: _loanForms[i].agreementImagePath?.split('/').last,
                 hint: 'No file chosen',
                 onTap: () => _pickAgreementImage(_loanForms[i]),
+                showBottomBorder: false,
+              ),
+              */
+              _buildImagePickerField(
+                label: 'Agreement Image',
+                localPath: _loanForms[i].agreementImagePath,
+                networkUrl: widget.loans != null && i < widget.loans!.length ? widget.loans![i].agreementImage : null,
+                onEdit: () => _pickAgreementImage(_loanForms[i]),
                 showBottomBorder: false,
               ),
             ],
@@ -3110,6 +3134,83 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildImagePickerField({
+    required String label,
+    required String? localPath,
+    required String? networkUrl,
+    required VoidCallback onEdit,
+    bool showBottomBorder = true,
+  }) {
+    final hasLocal = localPath != null && localPath.isNotEmpty;
+    final hasNetwork = networkUrl != null && networkUrl.isNotEmpty;
+    final hasImage = hasLocal || hasNetwork;
+    final displayName = hasLocal
+        ? localPath.split('/').last
+        : hasNetwork
+            ? networkUrl.split('/').last
+            : 'No file chosen';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Container(
+              decoration: BoxDecoration(
+                border: showBottomBorder
+                    ? const Border(
+                        bottom: BorderSide(color: Color(0xFFF1F2F5), width: 1.0),
+                      )
+                    : null,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        displayName,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                      ),
+                    ),
+                    if (hasImage) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _showFullImagePreview(localPath, networkUrl, label),
+                        child: const Icon(Icons.visibility_outlined, size: 18, color: AppColors.primaryBlue),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: onEdit,
+                      child: const Icon(Icons.edit_outlined, size: 18, color: AppColors.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

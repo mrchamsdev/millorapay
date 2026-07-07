@@ -31,7 +31,8 @@ class PaymentUpdateModal extends StatefulWidget {
   final Map<String, dynamic>? initialData;
   final int? paymentId;
   final num? currentPendingPrincipal;
-  final num? initialInterestAmount; // NEW: pre-fills Interest Amount when opened from a due item
+  final num? initialInterestAmount;
+  final num? totalAmount; // NEW: pre-fills Interest Amount when opened from a due item
 
   const PaymentUpdateModal({
     super.key,
@@ -41,6 +42,7 @@ class PaymentUpdateModal extends StatefulWidget {
     this.paymentId,
     this.currentPendingPrincipal,
     this.initialInterestAmount,
+    this.totalAmount,
   });
 
   @override
@@ -147,17 +149,20 @@ class _PaymentUpdateModalState extends State<PaymentUpdateModal> {
       _referenceNumberCtrl.text = data['referenceNUmber'] ?? '';
       _paymentType = data['paymentTYpe'] ?? 'CASH';
     } else {
-      // Default principal to 0
-      _principalAmountCtrl.text = '0';
-      if (widget.initialInterestAmount != null) {
-        _interestAmountCtrl.text = widget.initialInterestAmount!.toStringAsFixed(2);
-        // Default remaining balance = interest amount (since principal starts at 0)
-        _remainingBalanceCtrl.text = widget.initialInterestAmount!.toStringAsFixed(2);
-      }
-    }
+  // Default principal to 0
+  _principalAmountCtrl.text = '0';
+  if (widget.initialInterestAmount != null) {
+    _interestAmountCtrl.text = widget.initialInterestAmount!.toStringAsFixed(2);
+  }
+  // Default remaining balance = totalAmount (since principal starts at 0)
+  if (widget.totalAmount != null) {
+    _remainingBalanceCtrl.text = widget.totalAmount!.toStringAsFixed(2);
+  }
+}
+    
 
     _principalAmountCtrl.addListener(_onPrincipalChanged);
-    _interestAmountCtrl.addListener(_onPrincipalChanged);
+    //_interestAmountCtrl.addListener(_onPrincipalChanged);
   }
 
   /*void _onPrincipalChanged() {
@@ -174,19 +179,14 @@ class _PaymentUpdateModalState extends State<PaymentUpdateModal> {
     }
   }*/
   void _onPrincipalChanged() {
-    final principalText = _principalAmountCtrl.text.trim();
-    final interestText = _interestAmountCtrl.text.trim();
+  if (widget.totalAmount == null) return;
 
-    if (principalText.isEmpty) {
-      _remainingBalanceCtrl.text = '';
-    } else {
-      final enteredPrincipal = double.tryParse(principalText) ?? 0.0;
-      final interestAmount = double.tryParse(interestText) ?? 0.0;
-      final remaining = interestAmount - enteredPrincipal;
-      _remainingBalanceCtrl.text = remaining.toStringAsFixed(2);
-    }
-  }
+  final principalText = _principalAmountCtrl.text.trim();
+  final enteredPrincipal = principalText.isEmpty ? 0.0 : (double.tryParse(principalText) ?? 0.0);
 
+  final remaining = widget.totalAmount! - enteredPrincipal;
+  _remainingBalanceCtrl.text = remaining.toStringAsFixed(2);
+}
   @override
   /*void dispose() {
     _principalAmountCtrl.removeListener(_onPrincipalChanged);
@@ -200,7 +200,7 @@ class _PaymentUpdateModalState extends State<PaymentUpdateModal> {
   @override
   void dispose() {
     _principalAmountCtrl.removeListener(_onPrincipalChanged);
-    _interestAmountCtrl.removeListener(_onPrincipalChanged);
+    //_interestAmountCtrl.removeListener(_onPrincipalChanged);
     _dateCtrl.dispose();
     _interestAmountCtrl.dispose();
     _principalAmountCtrl.dispose();

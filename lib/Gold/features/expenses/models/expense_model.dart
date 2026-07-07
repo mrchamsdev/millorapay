@@ -1,4 +1,6 @@
 import '../../categories/models/category_model.dart';
+import 'package:currency_picker/currency_picker.dart';
+
 
 class ExpenseHistoryChangeDetail {
   final String? newValue;
@@ -127,6 +129,17 @@ class Expense {
     this.company,
     this.user,
   });
+
+  String get currencySymbol {
+    if (amountType == 'Rupees' || amountType == 'INR') return '₹';
+    try {
+      final currency = CurrencyService().findByCode(amountType);
+      return currency?.symbol ?? amountType;
+    } catch (_) {
+      return amountType;
+    }
+  }
+
 
   factory Expense.fromJson(Map<String, dynamic> json) {
     final rawAmount = json['amount'];
