@@ -119,13 +119,33 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
       final oldVal = detail.oldValue ?? 'none';
       final newVal = detail.newValue ?? 'none';
       if (field == 'amount') {
-        changeTexts.add('Amount changed from ₹$oldVal to ₹$newVal');
+        changeTexts.add('Amount changed from ${_expense.currencySymbol}$oldVal to ${_expense.currencySymbol}$newVal');
       } else if (field == 'description') {
         changeTexts.add("Description updated to '$newVal'");
       } else if (field == 'expenseCategoryId') {
         changeTexts.add('Category updated');
       } else if (field == 'file') {
         changeTexts.add('Receipt image updated');
+      } else if (field == 'note') {
+        if (oldVal == 'none' || oldVal.isEmpty) {
+          changeTexts.add("Note added: '$newVal'");
+        } else if (newVal == 'none' || newVal.isEmpty) {
+          changeTexts.add("Note removed");
+        } else {
+          changeTexts.add("Note changed from '$oldVal' to '$newVal'");
+        }
+      } else if (field == 'amountType') {
+        changeTexts.add("Currency changed from '$oldVal' to '$newVal'");
+      } else if (field == 'comment') {
+        if (oldVal == 'none' || oldVal.isEmpty) {
+          changeTexts.add("Comment added: '$newVal'");
+        } else if (newVal == 'none' || newVal.isEmpty) {
+          changeTexts.add("Comment removed");
+        } else {
+          changeTexts.add("Comment changed from '$oldVal' to '$newVal'");
+        }
+      } else if (field == 'expenseDate') {
+        changeTexts.add("Date changed from '$oldVal' to '$newVal'");
       } else {
         changeTexts
             .add('${field[0].toUpperCase()}${field.substring(1)} changed');
@@ -203,6 +223,7 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
                       addedBy: _expense.user?.name ?? '',
                       fileUrl: _expense.file,
                       iconUrl: _expense.expenseCategory?.icon,
+                      currencySymbol: _expense.currencySymbol,
                     ),
                     SizedBox(height: 1.5.h),
                     const Divider(color: Color(0xFFF1F2F5)),

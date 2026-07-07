@@ -11,6 +11,7 @@ class DetailHeader extends StatelessWidget {
   final String addedBy;
   final String? fileUrl;
   final String? iconUrl;
+  final String currencySymbol;
 
   const DetailHeader({
     super.key,
@@ -20,6 +21,7 @@ class DetailHeader extends StatelessWidget {
     required this.addedBy,
     this.fileUrl,
     this.iconUrl,
+    this.currencySymbol = '₹',
   });
 
   @override
@@ -64,7 +66,7 @@ class DetailHeader extends StatelessWidget {
               Text(title, style: AppTextStyles.h2.copyWith(fontSize: 12.sp, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(
-                '₹$amount',
+                '$currencySymbol$amount',
                 style: AppTextStyles.h1.copyWith(fontSize: 10.sp, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 8),

@@ -582,9 +582,9 @@ class _GoldDetailsScreenState extends State<GoldDetailsScreen> {
     final profitLossAmt = purchase.profitLossAmount ?? 0.0;
 
     final profitStr = isProfit
-        ? 'Profit - ${_formatIndianCurrency(profitLossAmt)}'
+        ? 'Profit - ₹${_formatIndianCurrency(profitLossAmt)}'
         : isLoss
-            ? 'Loss - ${_formatIndianCurrency(profitLossAmt)}'
+            ? 'Loss - ₹${_formatIndianCurrency(profitLossAmt)}'
             : 'Pending';
 
     final plColor = isProfit

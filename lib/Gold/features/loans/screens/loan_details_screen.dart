@@ -1148,7 +1148,8 @@ class LoanDetailsScreen extends StatefulWidget {
   final int? personId;       // Records tab — shows ALL loans for this person
   final int? loanId;         // Due tab — shows ONLY this one specific loan
   final bool alwaysShowPayInterest;
-  final num? dueInterestAmount; // Pre-fills Interest Amount in Pay Interest modal
+  final num? dueInterestAmount;
+  final num? dueTotalAmount; // Pre-fills Interest Amount in Pay Interest modal
 
   const LoanDetailsScreen({
     super.key,
@@ -1156,6 +1157,7 @@ class LoanDetailsScreen extends StatefulWidget {
     this.loanId,
     this.alwaysShowPayInterest = false,
     this.dueInterestAmount,
+    this.dueTotalAmount,
   }) : assert(personId != null || loanId != null, 'Either personId or loanId must be provided');
 
   @override
@@ -1214,7 +1216,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
     }
   }
 
-  Future<void> _handleDelete() async {
+  /*Future<void> _handleDelete() async {
     if (_details == null) return;
 
     final confirm = await GoldDialogs.showPermissionDialog(
@@ -1249,6 +1251,47 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+  */Future<void> _handleDelete() async {
+    if (_details == null || _details!.loans.isEmpty) return;
+
+    final confirm = await GoldDialogs.showPermissionDialog(
+      context: context,
+      title: 'Delete Record?',
+      message: 'Are you sure you want to delete this record? This will remove all loans and personal details for this person. This action cannot be undone.',
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline,
+      iconColor: Colors.redAccent,
+    );
+
+    if (!confirm) return;
+
+    setState(() => _isLoading = true);
+    try {
+      bool allSucceeded = true;
+      for (final loan in _details!.loans) {
+        if (loan.id == null) continue;
+        final success = await _repository.deleteLoan(loan.id!);
+        if (!success) allSucceeded = false;
+      }
+
+      if (allSucceeded) {
+        if (mounted) {
+          GoldDialogs.showSnackBar(context, 'Record deleted successfully.');
+          Navigator.pop(context, true);
+        }
+      } else {
+        if (mounted) {
+          GoldDialogs.showSnackBar(context, 'Failed to delete one or more loans.', isError: true);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        GoldDialogs.showSnackBar(context, 'Error: ${e.toString()}', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1262,7 +1305,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
         ),
         title: const Text('View Details', style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w500)),
         centerTitle: true,
-        actions: [
+        /*actions: [
           if (GoldSession.instance.canWrite('Loan')) ...[
             IconButton(
               icon: Image.asset(
@@ -1286,7 +1329,7 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
                 }
               },
             ),
-            /*IconButton(
+            IconButton(
               icon: Image.asset(
                 'assets/images/delete.png',
                 width: 18,
@@ -1295,7 +1338,46 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
               ),
               onPressed: _handleDelete,
             ),
-            */
+            
+            const SizedBox(width: 8),
+          ],
+        ],
+        */
+        actions: [
+          if (GoldSession.instance.canWrite('Loan')) ...[
+            if (widget.loanId == null) ...[
+              IconButton(
+                icon: Image.asset(
+                  'assets/images/edit.png',
+                  width: 18,
+                  height: 18,
+                  fit: BoxFit.contain,
+                ),
+                onPressed: () async {
+                  if (_details != null && _details!.loans.isNotEmpty) {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddLoanScreen(
+                          person: _details,
+                          loans: _details!.loans,
+                        ),
+                      ),
+                    );
+                    if (result == true) _fetchDetails();
+                  }
+                },
+              ),
+              IconButton(
+                icon: Image.asset(
+                  'assets/images/delete.png',
+                  width: 18,
+                  height: 18,
+                  fit: BoxFit.contain,
+                ),
+                onPressed: _handleDelete,
+              ),
+            ],
             const SizedBox(width: 8),
           ],
         ],
@@ -1382,7 +1464,10 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
                                 personId: _details!.id,
                                 loanId: _details!.loans.first.id ?? 0,
                                 currentPendingPrincipal: _details!.loans.first.pendingAmount,
-                                initialInterestAmount: widget.dueInterestAmount,
+                                initialInterestAmount: widget.dueInterestAmount ?? _details!.loans.first.interestAmount,
+                                //initialInterestAmount: widget.dueInterestAmount,
+                                //totalAmount: _details!.loans.first.totalAmount,
+                                totalAmount: _details!.loans.first.totalAmount ?? widget.dueTotalAmount,
                               ),
                             );
                             if (result == true) _fetchDetails();

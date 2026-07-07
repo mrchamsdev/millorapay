@@ -287,7 +287,7 @@ class LoanRepository {
     }
   }
 
-  Future<bool> deletePerson(int id) async {
+  /*Future<bool> deletePerson(int id) async {
     try {
       final url = '/loan/person/delete/$id';
       if (kDebugMode) debugPrint('🌐 DELETE PERSON: $url');
@@ -304,6 +304,18 @@ class LoanRepository {
       return response.statusCode == 200;
     } catch (e) {
       if (kDebugMode) debugPrint('❌ DELETE PERSON FALLBACK ERROR: $e');
+      return false;
+    }
+  }
+  */
+  Future<bool> deleteLoan(int loanId) async {
+    try {
+      final url = '/loan/loan/delete/$loanId';
+      if (kDebugMode) debugPrint('🌐 DELETE LOAN: $url');
+      final response = await _dio.delete(url);
+      return response.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ DELETE LOAN ERROR: $e');
       return false;
     }
   }

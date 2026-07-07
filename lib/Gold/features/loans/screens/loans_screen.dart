@@ -203,7 +203,7 @@ class LoansScreenState extends State<LoansScreen> with RouteAware {
     final color = AppColors.avatarColors[person.personId % AppColors.avatarColors.length];
     return GestureDetector(
       onTap: () async {
-        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => LoanDetailsScreen(personId: person.personId)));
+        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => LoanDetailsScreen(personId: person.personId,dueTotalAmount: person.totalAmount,dueInterestAmount: person.totalInterest,)));
         if (result == true) _fetchData(showLoader: false);
       },
       
@@ -254,7 +254,7 @@ class LoansScreenState extends State<LoansScreen> with RouteAware {
     );
   }
 
-  Widget _buildDuesList() {
+  /*Widget _buildDuesList() {
     if (_dues.isEmpty) return const Center(child: Text('No dues found'));
 
     // Group dues by month if possible, but dues list in model is flat. Let's group by dueMonth.
@@ -268,6 +268,39 @@ class LoansScreenState extends State<LoansScreen> with RouteAware {
       itemCount: grouped.keys.length,
       itemBuilder: (context, index) {
         final month = grouped.keys.elementAt(index);
+        final list = grouped[month]!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(month, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black)),
+            ),
+            ...list.map((due) => _buildDueItem(due)),
+          ],
+        );
+      },
+    );
+  }
+  */
+  Widget _buildDuesList() {
+    if (_dues.isEmpty) return const Center(child: Text('No dues found'));
+
+    // Group dues by month if possible, but dues list in model is flat. Let's group by dueMonth.
+    final Map<String, List<LoanDue>> grouped = {};
+    for (var due in _dues) {
+      grouped.putIfAbsent(due.dueMonth, () => []).add(due);
+    }
+
+    // Sort months descending (latest month first)
+    final sortedMonths = grouped.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: sortedMonths.length,
+      itemBuilder: (context, index) {
+        final month = sortedMonths[index];
         final list = grouped[month]!;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,6 +349,7 @@ class LoansScreenState extends State<LoansScreen> with RouteAware {
         loanId: due.loanId,
         alwaysShowPayInterest: true,
         dueInterestAmount: due.interestAmount,
+        dueTotalAmount: due.totalAmount,
       ),
     ),
   );
