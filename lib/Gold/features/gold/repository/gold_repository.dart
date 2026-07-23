@@ -89,6 +89,24 @@ class GoldRepository {
     }
   }
 
+  /// Step 3: Update Items of a Gold Purchase in-place
+  /// PUT /api/gold/updateItems
+  Future<bool> updateItems(int purchaseId, List<GoldBilledItem> items) async {
+    try {
+      final response = await _dio.put(
+        GoldApiConstants.updateItems,
+        data: {
+          "purchaseId": purchaseId,
+          "items": items.map((e) => e.toJson()).toList(),
+        },
+      );
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) print('[GoldRepository] Error updateItems: $e');
+      rethrow;
+    }
+  }
+
   /// Update Party details
   /// PUT /api/gold/updateParty/:id
   Future<bool> updateParty(int id, Map<String, dynamic> data) async {
@@ -140,6 +158,17 @@ class GoldRepository {
   Future<bool> deleteGold(int id) async {
     try {
       final response = await _dio.delete(GoldApiConstants.deleteGold(id.toString()));
+      return response.statusCode == 200;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Delete Billed Item
+  /// DELETE /api/gold/item/:id
+  Future<bool> deleteBilledItem(int id) async {
+    try {
+      final response = await _dio.delete(GoldApiConstants.deleteItem(id.toString()));
       return response.statusCode == 200;
     } catch (e) {
       rethrow;

@@ -16,6 +16,8 @@ class AddGoldItemScreen extends StatefulWidget {
 }
 
 class GoldItemInputSet {
+  int? id;
+  int? purchaseId;
   final grossWeightController = TextEditingController();
   final side1Controller = TextEditingController();
   final side2Controller = TextEditingController();
@@ -67,6 +69,8 @@ class _AddGoldItemScreenState extends State<AddGoldItemScreen> {
     if (widget.initialItems != null && widget.initialItems!.isNotEmpty) {
       for (final item in widget.initialItems!) {
         final set = GoldItemInputSet();
+        set.id = item.id;
+        set.purchaseId = item.purchaseId;
         set.grossWeightController.text =
             item.grossWeight > 0 ? item.grossWeight.toString() : '';
         set.side1Controller.text = item.side1 > 0 ? item.side1.toString() : '';
@@ -121,6 +125,8 @@ class _AddGoldItemScreenState extends State<AddGoldItemScreen> {
       }
 
       items.add(GoldBilledItem(
+        id: itemSet.id,
+        purchaseId: itemSet.purchaseId,
         grossWeight: gw,
         side1: s1,
         side2: s2,

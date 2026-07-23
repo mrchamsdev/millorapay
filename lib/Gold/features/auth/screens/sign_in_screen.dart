@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:bank_scan/Gold/core/constants/app_colors.dart';
 import 'package:bank_scan/Gold/core/constants/app_text_styles.dart';
@@ -31,8 +31,8 @@ class _GoldSignInScreenState extends State<GoldSignInScreen> {
 
   final _secureStorage = const FlutterSecureStorage();
   final _localAuth = LocalAuthentication();
-  bool _isFaceIdAvailable = false;
-  bool _isFaceIdEnabled = false;
+  // bool _isFaceIdAvailable = false;
+  // bool _isFaceIdEnabled = false;
   bool _isBiometricEnabled = false;
   bool _showBiometricSection = false;
 
@@ -47,9 +47,9 @@ class _GoldSignInScreenState extends State<GoldSignInScreen> {
       final canCheckBiometrics = await _localAuth.canCheckBiometrics;
       final isDeviceSupported = await _localAuth.isDeviceSupported();
       if (canCheckBiometrics && isDeviceSupported) {
-        if (mounted) setState(() => _isFaceIdAvailable = true);
+        // if (mounted) setState(() => _isFaceIdAvailable = true);
         
-        final faceEnabled = await _secureStorage.read(key: 'isFaceEnabled');
+        // final faceEnabled = await _secureStorage.read(key: 'isFaceEnabled');
         final bioEnabled = await _secureStorage.read(key: 'isBiometricEnabled');
         final email = await _secureStorage.read(key: 'email');
         final deviceId = await _secureStorage.read(key: 'biometricDeviceId');
@@ -57,9 +57,9 @@ class _GoldSignInScreenState extends State<GoldSignInScreen> {
         if (email != null && deviceId != null) {
           if (mounted) {
             setState(() {
-              _isFaceIdEnabled = faceEnabled == 'true';
+              // _isFaceIdEnabled = faceEnabled == 'true';
               _isBiometricEnabled = bioEnabled == 'true';
-              _showBiometricSection = _isFaceIdEnabled || _isBiometricEnabled;
+              _showBiometricSection = /* _isFaceIdEnabled || */ _isBiometricEnabled;
             });
           }
         }
@@ -70,14 +70,14 @@ class _GoldSignInScreenState extends State<GoldSignInScreen> {
   }
 
   Future<String> _getDeviceId() async {
-    final deviceInfo = DeviceInfoPlugin();
-    if (Platform.isIOS) {
-      final iosInfo = await deviceInfo.iosInfo;
-      return iosInfo.identifierForVendor ?? 'unknown_ios_id';
-    } else {
-      final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.id;
+    String? deviceId = await _secureStorage.read(key: 'device_uuid');
+    if (deviceId != null && deviceId.isNotEmpty) {
+      return deviceId;
     }
+
+    final uuid = const Uuid().v4();
+    await _secureStorage.write(key: 'device_uuid', value: uuid);
+    return uuid;
   }
 
   @override
@@ -188,7 +188,7 @@ class _GoldSignInScreenState extends State<GoldSignInScreen> {
     }
   }
 
-  Future<void> _handleFaceLogin() async {
+  /* Future<void> _handleFaceLogin() async {
     final enabled = await _secureStorage.read(key: 'isFaceEnabled');
     if (enabled != 'true') {
       _showError('Face ID is not enabled. Please enable it in Settings.');
@@ -217,7 +217,7 @@ class _GoldSignInScreenState extends State<GoldSignInScreen> {
     } catch (e) {
       if (mounted) _showError('Face authentication failed.');
     }
-  }
+  } */
 
   Future<void> _handleBiometricLogin() async {
     final enabled = await _secureStorage.read(key: 'isBiometricEnabled');
@@ -227,8 +227,22 @@ class _GoldSignInScreenState extends State<GoldSignInScreen> {
     }
 
     try {
+      final availableBiometrics = await _localAuth.getAvailableBiometrics();
+      if (!availableBiometrics.contains(BiometricType.fingerprint) &&
+          !availableBiometrics.contains(BiometricType.strong)) {
+        _showError('Fingerprint is not available or not enrolled.');
+        return;
+      }
+
+      /* final didAuthenticate = await _localAuth.authenticate(
+        localizedReason: 'Please authenticate to sign in with Fingerprint',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+        ),
+      ); */
       final didAuthenticate = await _localAuth.authenticate(
         localizedReason: 'Please authenticate to sign in with Fingerprint',
+        biometricOnly: true,
       );
 
       if (didAuthenticate) {
@@ -425,14 +439,14 @@ class _GoldSignInScreenState extends State<GoldSignInScreen> {
                     children: [
                       Row(
                         children: [
-                          GestureDetector(
+                          /* GestureDetector(
                             onTap: _isLoading ? null : _handleFaceLogin,
                             child: _FaceScanIcon(
                               size: 32,
                               color: AppColors.textPrimary,
                             ),
                           ),
-                          const SizedBox(width: 18),
+                          const SizedBox(width: 18), */
                           GestureDetector(
                             onTap: _isLoading ? null : _handleBiometricLogin,
                             child: Icon(

@@ -209,6 +209,7 @@ class LoanDue {
   final num interestAmount;
   final num totalAmount;
   final String status;
+  final int? remainingMonths;
 
   LoanDue({
     required this.personId,
@@ -220,6 +221,7 @@ class LoanDue {
     required this.interestAmount,
     required this.totalAmount,
     required this.status,
+    this.remainingMonths,
   });
 
   factory LoanDue.fromJson(Map<String, dynamic> json) => LoanDue(
@@ -232,6 +234,7 @@ class LoanDue {
         interestAmount: num.tryParse(json['interestAmount']?.toString() ?? '0') ?? 0,
         totalAmount: num.tryParse(json['totalAmount']?.toString() ?? '0') ?? 0,
         status: json['status'] ?? '',
+        remainingMonths: json['remainingMonths'],
       );
 }
 

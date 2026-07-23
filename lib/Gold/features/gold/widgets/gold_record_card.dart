@@ -15,10 +15,22 @@ class GoldRecordCard extends StatelessWidget {
   });
 
   String _formatIndianCurrency(double amount) {
-    String str = amount.toStringAsFixed(0);
-    if (str.length <= 3) return str;
-    String lastThree = str.substring(str.length - 3);
-    String other = str.substring(0, str.length - 3);
+    String str = amount.toStringAsFixed(2);
+    
+    String integerPart;
+    String decimalPart = '';
+    
+    if (str.contains('.')) {
+      List<String> parts = str.split('.');
+      integerPart = parts[0];
+      decimalPart = '.${parts[1]}';
+    } else {
+      integerPart = str;
+    }
+    
+    if (integerPart.length <= 3) return '$integerPart$decimalPart';
+    String lastThree = integerPart.substring(integerPart.length - 3);
+    String other = integerPart.substring(0, integerPart.length - 3);
     String result = '';
     int count = 0;
     for (int i = other.length - 1; i >= 0; i--) {
@@ -29,7 +41,7 @@ class GoldRecordCard extends StatelessWidget {
         count = 0;
       }
     }
-    return '$result,$lastThree';
+    return '$result,$lastThree$decimalPart';
   }
 
   @override

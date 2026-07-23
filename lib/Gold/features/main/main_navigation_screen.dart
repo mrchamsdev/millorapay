@@ -151,20 +151,41 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              isSelected ? activeAssetPath : assetPath,
-              width: 18,
-              height: 18,
-              // Tint dashboard.png since it has no separate active file
-              color: index == 0 ? color : null,
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: Colors.transparent,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Image.asset(
+                  isSelected ? activeAssetPath : assetPath,
+                  width: index == 0
+                      ? 20
+                      : index == 3
+                          ? 26
+                          : 24,
+                  height: index == 0
+                      ? 20
+                      : index == 3
+                          ? 28
+                          : 24,
+                  // Tint dashboard.png since it has no separate active file
+                  color: index == 0 ? color : null,
+                ),
+              ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: AppTextStyles.navLabel.copyWith(
-                color: color,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                fontSize: 9,
+            const SizedBox(height: 0),
+            Transform.translate(
+              offset: const Offset(0, -6),
+              child: Text(
+                label,
+                style: AppTextStyles.navLabel.copyWith(
+                  color: color,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 9,
+                ),
               ),
             ),
           ],

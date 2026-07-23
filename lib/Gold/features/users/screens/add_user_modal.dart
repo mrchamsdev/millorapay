@@ -105,6 +105,94 @@ class _AddUserModalState extends State<AddUserModal> {
     }
   }
 
+  String? get _displayGender {
+    if (_genderController.text.isEmpty) return null;
+    final text = _genderController.text.toLowerCase();
+    if (text == 'male') return 'Male';
+    if (text == 'female') return 'Female';
+    return _genderController.text;
+  }
+
+  void _showGenderPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SizedBox(width: 32),
+                  Text(
+                    'Select Gender',
+                    style: AppTextStyles.bodyLarge.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, size: 18, color: AppColors.primaryBlue),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1, thickness: 1, color: AppColors.divider),
+              const SizedBox(height: 8),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                title: const Text('Male', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                trailing: _genderController.text.toLowerCase() == 'male'
+                    ? const Icon(Icons.check_circle, color: AppColors.primaryBlue)
+                    : null,
+                onTap: () {
+                  setState(() {
+                    _genderController.text = 'male';
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                title: const Text('Female', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+                trailing: _genderController.text.toLowerCase() == 'female'
+                    ? const Icon(Icons.check_circle, color: AppColors.primaryBlue)
+                    : null,
+                onTap: () {
+                  setState(() {
+                    _genderController.text = 'female';
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -226,8 +314,9 @@ class _AddUserModalState extends State<AddUserModal> {
                       ),
                       GoldDetailInputField(
                         label: 'Gender',
-                        controller: _genderController,
-                        hint: 'Enter gender',
+                        value: _displayGender,
+                        hint: 'Select gender',
+                        onTap: _showGenderPicker,
                       ),
                       GoldDetailInputField(
                         label: 'Email',
