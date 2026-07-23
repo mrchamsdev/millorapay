@@ -192,6 +192,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   final ImagePicker _picker = ImagePicker();
 
   static const Map<String, String> _interestPeriodNames = {
+    'DAILY': 'Days',
     'MONTHLY': 'Monthly',
     'YEARLY': 'Yearly',
   };
@@ -1200,7 +1201,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
         ),
         _buildCombinedDropdownInput(
           label: 'Interest Payment Period',
-          dropdownText: _interestPaymentPeriodType == 'MONTHLY' ? 'Monthly' : _interestPaymentPeriodType == 'YEARLY' ? 'Yearly' : _interestPaymentPeriodType ?? 'Monthly',
+          dropdownText: _interestPeriodNames[_interestPaymentPeriodType] ?? 'Monthly',
           textController: _interestPaymentPeriodCtrl,
           hintText: 'Enter period',
           onDropdownTap: _showInterestPeriodPicker,
@@ -1497,7 +1498,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
             _buildSummaryField('Interest Rate', '${_interestRateCtrl.text}%'),
             _buildSummaryField(
               'Interest Payment Period',
-              '${_interestPaymentPeriodType == 'MONTHLY' ? 'Monthly' : _interestPaymentPeriodType == 'YEARLY' ? 'Yearly' : _interestPaymentPeriodType ?? 'Monthly'} / ${_interestPaymentPeriodCtrl.text}',
+              '${_interestPeriodNames[_interestPaymentPeriodType] ?? 'Monthly'} / ${_interestPaymentPeriodCtrl.text}',
             ),
             _buildSummaryImageField('Agreement Image', _agreementImagePath, widget.loan?.agreementImage),
           ],
@@ -1736,6 +1737,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
   }
 
   static const Map<String, String> _interestPeriodNames = {
+    'DAILY': 'Days',
     'MONTHLY': 'Monthly',
     'YEARLY': 'Yearly',
   };
@@ -2978,11 +2980,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
               ),
               _buildCombinedDropdownInput(
                 label: 'Interest Payment Period',
-                dropdownText: _loanForms[i].interestPaymentPeriodType == 'MONTHLY'
-                    ? 'Monthly'
-                    : _loanForms[i].interestPaymentPeriodType == 'YEARLY'
-                        ? 'Yearly'
-                        : _loanForms[i].interestPaymentPeriodType ?? 'Monthly',
+                dropdownText: _interestPeriodNames[_loanForms[i].interestPaymentPeriodType] ?? 'Monthly',
                 textController: _loanForms[i].interestPaymentPeriodCtrl,
                 hintText: 'Enter period',
                 onDropdownTap: () => _showInterestPeriodPicker(_loanForms[i]),
@@ -3372,7 +3370,7 @@ class _AddLoanScreenState extends State<AddLoanScreen> {
               _buildSummaryField('Interest Rate', '${_loanForms[i].interestRateCtrl.text}%'),
               _buildSummaryField(
                 'Interest Payment Period',
-                '${_loanForms[i].interestPaymentPeriodType == 'MONTHLY' ? 'Monthly' : _loanForms[i].interestPaymentPeriodType == 'YEARLY' ? 'Yearly' : _loanForms[i].interestPaymentPeriodType ?? 'Monthly'} / ${_loanForms[i].interestPaymentPeriodCtrl.text}',
+                '${_interestPeriodNames[_loanForms[i].interestPaymentPeriodType] ?? 'Monthly'} / ${_loanForms[i].interestPaymentPeriodCtrl.text}',
               ),
               _buildSummaryImageField(
                 'Agreement Image',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:bank_scan/Gold/core/constants/app_colors.dart';
 import '../../../widgets/gold_dialogs.dart';
 import '../../../widgets/gold_detail_input.dart';
@@ -19,6 +20,7 @@ class _AdditionalLoanModalState extends State<AdditionalLoanModal> {
   final _repository = LoanRepository();
   bool _isLoading = false;
 
+  String? _loanPeriodType = 'MONTH';
   final _loanPeriodCtrl = TextEditingController(text: '12');
   final _loanDateCtrl = TextEditingController();
   String? _principalAmountType = 'INR';
@@ -31,6 +33,7 @@ class _AdditionalLoanModalState extends State<AdditionalLoanModal> {
   final ImagePicker _picker = ImagePicker();
 
   static const Map<String, String> _interestPeriodNames = {
+    'DAILY': 'Days',
     'MONTHLY': 'Monthly',
     'YEARLY': 'Yearly',
   };
@@ -152,6 +155,52 @@ class _AdditionalLoanModalState extends State<AdditionalLoanModal> {
     );
   }
 
+  void _showLoanPeriodTypePicker() {
+    const options = {'DAY': 'Days', 'MONTH': 'Months', 'YEAR': 'Years'};
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Loan Period Type',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
+                ),
+              ),
+              const Divider(height: 1),
+              ...options.entries.map((entry) => ListTile(
+                    title: Text(
+                      entry.value,
+                      style: TextStyle(
+                        fontWeight: entry.key == _loanPeriodType ? FontWeight.bold : FontWeight.normal,
+                        color: entry.key == _loanPeriodType ? AppColors.primaryBlue : AppColors.textPrimary,
+                      ),
+                    ),
+                    trailing: entry.key == _loanPeriodType
+                        ? const Icon(Icons.check, color: AppColors.primaryBlue)
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        _loanPeriodType = entry.key;
+                      });
+                      Navigator.pop(context);
+                    },
+                  )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _submit() async {
     final loanPeriod = _loanPeriodCtrl.text.trim();
     final loanDate = _loanDateCtrl.text.trim();
@@ -184,7 +233,7 @@ class _AdditionalLoanModalState extends State<AdditionalLoanModal> {
     try {
       final data = {
         'personId': widget.personId,
-        'loanPeriodType': 'MONTH',
+        'loanPeriodType': _loanPeriodType ?? 'MONTH',
         'loanPeriod': loanPeriod,
         'loanDate': loanDate,
         'principalAmountType': _principalAmountType ?? 'INR',
@@ -218,6 +267,7 @@ class _AdditionalLoanModalState extends State<AdditionalLoanModal> {
     required TextEditingController textController,
     required String hintText,
     required VoidCallback onDropdownTap,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -279,6 +329,7 @@ class _AdditionalLoanModalState extends State<AdditionalLoanModal> {
                       controller: textController,
                       textAlign: TextAlign.end,
                       keyboardType: TextInputType.number,
+                      inputFormatters: inputFormatters,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -351,11 +402,20 @@ class _AdditionalLoanModalState extends State<AdditionalLoanModal> {
               GoldDetailInputGroup(
                 padding: EdgeInsets.zero,
                 children: [
-                  GoldDetailInputField(
+                  _buildCombinedDropdownInput(
                     label: 'Loan Period',
-                    controller: _loanPeriodCtrl,
-                    hint: 'Enter period',
-                    keyboardType: TextInputType.number,
+                    dropdownText: _loanPeriodType == 'DAY'
+                        ? 'Days'
+                        : _loanPeriodType == 'YEAR'
+                            ? 'Years'
+                            : 'Months',
+                    textController: _loanPeriodCtrl,
+                    hintText: 'Enter period',
+                    onDropdownTap: _showLoanPeriodTypePicker,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(4),
+                    ],
                   ),
                   GoldDetailInputField(
                     label: 'Loan Date',

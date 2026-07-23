@@ -1,9 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:uuid/uuid.dart';
+
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/gold_session.dart';
@@ -43,14 +44,14 @@ class _FaceIdScreenState extends State<FaceIdScreen> {
   }
 
   Future<String> _getDeviceId() async {
-    final deviceInfo = DeviceInfoPlugin();
-    if (Platform.isIOS) {
-      final iosInfo = await deviceInfo.iosInfo;
-      return iosInfo.identifierForVendor ?? 'unknown_ios_id';
-    } else {
-      final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.id;
+    String? deviceId = await _secureStorage.read(key: 'device_uuid');
+    if (deviceId != null && deviceId.isNotEmpty) {
+      return deviceId;
     }
+
+    final uuid = const Uuid().v4();
+    await _secureStorage.write(key: 'device_uuid', value: uuid);
+    return uuid;
   }
 
   void _showError(String msg) {
@@ -82,7 +83,9 @@ class _FaceIdScreenState extends State<FaceIdScreen> {
       if (!canCheckBiometrics) return;
 
       final availableBiometrics = await _localAuth.getAvailableBiometrics();
-      if (!availableBiometrics.contains(BiometricType.face) && !availableBiometrics.contains(BiometricType.strong)) {
+      if (!availableBiometrics.contains(BiometricType.face) &&
+          !availableBiometrics.contains(BiometricType.strong) &&
+          !availableBiometrics.contains(BiometricType.weak)) {
         _showError('Face Recognition is not available on this device. Please use Fingerprint.');
         setState(() {
           _isFaceIdEnabled = false;
@@ -220,7 +223,7 @@ class _FaceIdScreenState extends State<FaceIdScreen> {
               const SizedBox(height: 20),
               const Divider(color: AppColors.divider, height: 1),
               const SizedBox(height: 16),
-              Row(
+              /* Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
@@ -246,7 +249,7 @@ class _FaceIdScreenState extends State<FaceIdScreen> {
               ),
               const SizedBox(height: 16),
               const Divider(color: AppColors.divider, height: 1),
-              const SizedBox(height: 16),
+              const SizedBox(height: 16), */
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

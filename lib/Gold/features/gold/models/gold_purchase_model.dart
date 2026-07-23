@@ -46,6 +46,8 @@ class GoldBilledItem {
   });
 
   Map<String, dynamic> toJson() => {
+        "id": id,
+        "purchaseId": purchaseId,
         "grossWeight": grossWeight,
         "side1": side1,
         "side2": side2,
@@ -101,6 +103,8 @@ class GoldPurchase {
   final double? profitLossAmount;
   final double? profitAmount;
   final double? lossAmount;
+  final String? rawSaleAmount;
+  final String? rawProfitLossAmount;
 
   GoldPurchase({
     this.id,
@@ -132,6 +136,8 @@ class GoldPurchase {
     this.profitLossAmount,
     this.profitAmount,
     this.lossAmount,
+    this.rawSaleAmount,
+    this.rawProfitLossAmount,
   });
 
   Map<String, dynamic> toJson() => {
@@ -160,6 +166,8 @@ class GoldPurchase {
         "profitLossAmount": profitLossAmount,
         "profitAmount": profitAmount,
         "lossAmount": lossAmount,
+        "rawSaleAmount": rawSaleAmount,
+        "rawProfitLossAmount": rawProfitLossAmount,
       };
 
   factory GoldPurchase.fromJson(Map<String, dynamic> json) {
@@ -192,13 +200,17 @@ class GoldPurchase {
           : (json["items"] as List)
               .map((x) => GoldBilledItem.fromJson(x))
               .toList(),
-      soldOut: json["soldOut"],
+      soldOut: json["soldOut"] == null
+          ? null
+          : (json["soldOut"] == true || json["soldOut"] == 1),
       partyId: json["partyId"],
       salePartyId: json["salePartyId"],
       profitLossStatus: json["profitLossStatus"],
       profitLossAmount: _toDouble(json["profitLossAmount"]),
       profitAmount: _toDouble(json["profitAmount"]),
       lossAmount: _toDouble(json["lossAmount"]),
+      rawSaleAmount: json["saleAmount"]?.toString(),
+      rawProfitLossAmount: json["profitLossAmount"]?.toString(),
     );
   }
 

@@ -58,14 +58,15 @@ class LoansScreenState extends State<LoansScreen> with RouteAware {
   }
 
   void filterLoans(String query) {
-    if (query.isEmpty) {
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) {
       setState(() {
         _records = _allRecords;
         _dues = _allDues;
       });
       return;
     }
-    final lower = query.toLowerCase();
+    final lower = trimmedQuery.toLowerCase();
 
     // Filter records
     final List<LoanRecord> filteredRecords = [];
@@ -399,8 +400,11 @@ class LoansScreenState extends State<LoansScreen> with RouteAware {
                       text: '${due.personName} ',
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black),
                       children: [
-                        // Hardcoding remaining months placeholder as per screenshot
-                        TextSpan(text: '(Remaining: 22 Months)', style: TextStyle(fontSize: 9, color: Colors.grey.shade600, fontWeight: FontWeight.normal)),
+                        if (due.remainingMonths != null)
+                          TextSpan(
+                            text: '(Remaining: ${due.remainingMonths} Months)',
+                            style: TextStyle(fontSize: 9, color: Colors.grey.shade600, fontWeight: FontWeight.normal),
+                          ),
                       ],
                     ),
                   ),

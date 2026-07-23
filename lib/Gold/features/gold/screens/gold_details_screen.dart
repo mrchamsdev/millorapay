@@ -119,6 +119,7 @@ class _GoldDetailsScreenState extends State<GoldDetailsScreen> {
 
     if (!confirm) return;
 
+    final itemToDelete = purchase.items![index];
     final updatedItems = List<GoldBilledItem>.from(purchase.items!)..removeAt(index);
     final totalGross = updatedItems.fold(0.0, (sum, item) => sum + item.grossWeight);
     final totalPure = updatedItems.fold(0.0, (sum, item) => sum + item.pureWeight);
@@ -163,13 +164,24 @@ class _GoldDetailsScreenState extends State<GoldDetailsScreen> {
       profitLossAmount: purchase.profitLossAmount,
       profitAmount: purchase.profitAmount,
       lossAmount: purchase.lossAmount,
+      rawSaleAmount: purchase.rawSaleAmount,
+      rawProfitLossAmount: purchase.rawProfitLossAmount,
     );
 
     setState(() => _isLoading = true);
     try {
+      if (itemToDelete.id != null) {
+        final deleteSuccess = await _repository.deleteBilledItem(itemToDelete.id!);
+        if (!deleteSuccess) {
+          if (mounted) {
+            GoldDialogs.showSnackBar(context, 'Failed to delete item from server.', isError: true);
+          }
+          return;
+        }
+      }
+
       final success = await _repository.updateGold(purchase.id!, updatedPurchase);
       if (success) {
-        await _repository.createItems(purchase.id!, updatedItems);
         if (mounted) {
           setState(() {
             _purchase = updatedPurchase;
@@ -246,13 +258,15 @@ class _GoldDetailsScreenState extends State<GoldDetailsScreen> {
         profitLossAmount: purchase.profitLossAmount,
         profitAmount: purchase.profitAmount,
         lossAmount: purchase.lossAmount,
+        rawSaleAmount: purchase.rawSaleAmount,
+        rawProfitLossAmount: purchase.rawProfitLossAmount,
       );
 
       setState(() => _isLoading = true);
       try {
         final success = await _repository.updateGold(purchase.id!, updatedPurchase);
         if (success) {
-          await _repository.createItems(purchase.id!, updatedItems);
+          await _repository.updateItems(purchase.id!, updatedItems);
           if (mounted) {
             setState(() {
               _purchase = updatedPurchase;
@@ -520,11 +534,31 @@ class _GoldDetailsScreenState extends State<GoldDetailsScreen> {
   );
 }
 
-  String _formatIndianCurrency(double amount) {
-    String str = amount.toStringAsFixed(0);
-    if (str.length <= 3) return str;
-    String lastThree = str.substring(str.length - 3);
-    String other = str.substring(0, str.length - 3);
+  String _formatIndianCurrency(double amount, [String? rawValue]) {
+    String str;
+    if (rawValue != null && rawValue.isNotEmpty) {
+      str = rawValue;
+    } else {
+      str = amount.toString();
+      if (str.endsWith('.0')) {
+        str = str.substring(0, str.length - 2);
+      }
+    }
+    
+    String integerPart;
+    String decimalPart = '';
+    
+    if (str.contains('.')) {
+      List<String> parts = str.split('.');
+      integerPart = parts[0];
+      decimalPart = '.${parts[1]}';
+    } else {
+      integerPart = str;
+    }
+    
+    if (integerPart.length <= 3) return '$integerPart$decimalPart';
+    String lastThree = integerPart.substring(integerPart.length - 3);
+    String other = integerPart.substring(0, integerPart.length - 3);
     String result = '';
     int count = 0;
     for (int i = other.length - 1; i >= 0; i--) {
@@ -535,7 +569,7 @@ class _GoldDetailsScreenState extends State<GoldDetailsScreen> {
         count = 0;
       }
     }
-    return '$result,$lastThree';
+    return '$result,$lastThree$decimalPart';
   }
 
   String _formatDisplayDate(String dateStr) {
@@ -556,25 +590,31 @@ class _GoldDetailsScreenState extends State<GoldDetailsScreen> {
     String buyerName = '---';
     String buyerPhone = '---';
     String buyerDl = '---';
-    final note = purchase.note ?? '';
-    if (note.startsWith('Sold to:')) {
-      final content = note.replaceFirst('Sold to:', '').trim();
-      final dlParts = content.split('| DL:');
-      if (dlParts.length > 1) {
-        buyerDl = dlParts[1].trim();
-      }
-      final mainPart = dlParts[0].trim();
-      final phoneMatch = RegExp(r'\(([^)]+)\)$').firstMatch(mainPart);
-      if (phoneMatch != null) {
-        buyerPhone = phoneMatch.group(1) ?? '---';
-        buyerName = mainPart.substring(0, mainPart.lastIndexOf('(')).trim();
-      } else {
-        buyerName = mainPart;
+    if (purchase.saleParty != null) {
+      buyerName = purchase.saleParty!.partyName.isNotEmpty ? purchase.saleParty!.partyName : '---';
+      buyerPhone = purchase.saleParty!.partyPhoneNumber.isNotEmpty ? purchase.saleParty!.partyPhoneNumber : '---';
+      buyerDl = purchase.saleParty!.dlNumber.isNotEmpty ? purchase.saleParty!.dlNumber : '---';
+    } else {
+      final note = purchase.note ?? '';
+      if (note.startsWith('Sold to:')) {
+        final content = note.replaceFirst('Sold to:', '').trim();
+        final dlParts = content.split('| DL:');
+        if (dlParts.length > 1) {
+          buyerDl = dlParts[1].trim();
+        }
+        final mainPart = dlParts[0].trim();
+        final phoneMatch = RegExp(r'\(([^)]+)\)$').firstMatch(mainPart);
+        if (phoneMatch != null) {
+          buyerPhone = phoneMatch.group(1) ?? '---';
+          buyerName = mainPart.substring(0, mainPart.lastIndexOf('(')).trim();
+        } else {
+          buyerName = mainPart;
+        }
       }
     }
 
     if (buyerDl == '---' || buyerDl.isEmpty) {
-      buyerDl = purchase.dlNumber;
+      buyerDl = purchase.dlNumber.isNotEmpty ? purchase.dlNumber : '---';
     }
 
     final isLoss = purchase.profitLossStatus?.toUpperCase() == 'LOSS';
@@ -582,9 +622,9 @@ class _GoldDetailsScreenState extends State<GoldDetailsScreen> {
     final profitLossAmt = purchase.profitLossAmount ?? 0.0;
 
     final profitStr = isProfit
-        ? 'Profit - ₹${_formatIndianCurrency(profitLossAmt)}'
+        ? 'Profit - ₹${_formatIndianCurrency(profitLossAmt, purchase.rawProfitLossAmount)}'
         : isLoss
-            ? 'Loss - ₹${_formatIndianCurrency(profitLossAmt)}'
+            ? 'Loss - ₹${_formatIndianCurrency(profitLossAmt, purchase.rawProfitLossAmount)}'
             : 'Pending';
 
     final plColor = isProfit
@@ -659,7 +699,7 @@ class _GoldDetailsScreenState extends State<GoldDetailsScreen> {
               const SizedBox(height: 12),
               _SaleDetailRow(
                 label: 'Amount',
-                value: purchase.saleAmount != null ? '₹ ${_formatIndianCurrency(purchase.saleAmount!)}' : '₹ 0',
+                value: purchase.saleAmount != null ? '₹ ${_formatIndianCurrency(purchase.saleAmount!, purchase.rawSaleAmount)}' : '₹ 0',
                 valueBold: true,
               ),
             ],

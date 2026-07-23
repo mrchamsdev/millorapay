@@ -33,6 +33,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   final Map<int, bool> _purchaseExpanded = {};
   final Map<int, bool> _sellExpanded = {};
   final Map<int, bool> _loansExpanded = {};
+  final Map<int, bool> _showAllPayments = {};
+  bool _additionalInfoExpanded = false;
 
   @override
   void initState() {
@@ -137,35 +139,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Search Bar Under Header
-                  Container(
-                    color: Colors.white,
-                    padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
-                    child: Container(
-                      height: 5.h,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(8.r),
-                      ),
-                      child: TextField(
-                        style: AppTextStyles.bodyMedium.copyWith(fontSize: 12.sp),
-                        decoration: InputDecoration(
-                          hintText: 'Search',
-                          hintStyle: AppTextStyles.bodyMedium.copyWith(
-                            color: AppColors.textSecondary,
-                            fontSize: 12.sp,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search,
-                            color: AppColors.textSecondary,
-                            size: 18.sp,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 1.1.h),
-                        ),
-                      ),
-                    ),
-                  ),
+
 
                   // Main Details Box
                   Padding(
@@ -220,7 +194,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                                   ),
                                   SizedBox(height: 0.5.h),
                                   Text(
-                                    '+91 ${_customer.phoneNumber}',
+                                    _customer.phoneNumber.startsWith('+91')
+                                        ? _customer.phoneNumber
+                                        : '+91 ${_customer.phoneNumber}',
                                     style: TextStyle(
                                       color: AppColors.textSecondary,
                                       fontSize: 11.sp,
@@ -274,6 +250,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                       ),
                     ),
                   ),
+
+                  if (_activeTab == 'Loans')
+                    _buildAdditionalInformationSection(),
 
                   // Tabs: Gold & Loans
                   Padding(
@@ -368,6 +347,260 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     );
   }
 
+  Widget _buildAdditionalInformationSection() {
+    final person = _customer.persons.isNotEmpty ? _customer.persons.first : null;
+    if (person == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(color: const Color(0xFFF1F5F9), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _additionalInfoExpanded = !_additionalInfoExpanded;
+                });
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.8.h),
+                color: Colors.transparent,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Additional Information',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                    Icon(
+                      _additionalInfoExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      color: AppColors.textSecondary,
+                      size: 20.sp,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_additionalInfoExpanded) ...[
+              const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+              Container(
+                color: const Color(0xFFF8F9FA),
+                padding: EdgeInsets.all(4.w),
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoItem('Id Proof', person.idProof ?? '---'),
+                    SizedBox(height: 1.5.h),
+                    Text(
+                      'Id Proof Upload',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 9.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: 1.h),
+                    _buildProofImage(person.idProofImage),
+                    SizedBox(height: 1.5.h),
+                    _buildInfoItem('Address', person.address ?? '---'),
+                    SizedBox(height: 1.5.h),
+                    _buildInfoItem('Witness Name', person.witnessName ?? '---'),
+                    SizedBox(height: 1.5.h),
+                    _buildInfoItem('Nominee Mobile Number', person.witnessMobileNumber ?? '---'),
+                    SizedBox(height: 1.5.h),
+                    _buildInfoItem('Witness Relation', person.witnessRelation ?? '---'),
+                    SizedBox(height: 1.5.h),
+                    _buildInfoItem('Witness Id Proof', person.witnessIdProof ?? '---'),
+                    SizedBox(height: 1.5.h),
+                    Text(
+                      'Witness Id Proof Upload',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 9.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: 1.h),
+                    _buildProofImage(person.witnessIdProofImage),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 9.sp,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        SizedBox(height: 0.5.h),
+        Text(
+          value,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 11.sp,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProofImage(String? imageUrl) {
+    return GestureDetector(
+      onTap: () {
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          _showAgreementImageDialog(context, imageUrl);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No image uploaded.')),
+          );
+        }
+      },
+      child: Container(
+        height: 15.h,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(color: const Color(0xFFF1F5F9), width: 1),
+        ),
+        child: Center(
+          child: imageUrl != null && imageUrl.isNotEmpty
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8.r),
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) =>
+                        Icon(Icons.image_outlined, color: const Color(0xFF94A3B8), size: 30.sp),
+                  ),
+                )
+              : Icon(Icons.image_outlined, color: const Color(0xFF94A3B8), size: 30.sp),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomerDetailsCard(GoldPurchase record, bool isPurchase) {
+    // Determine the party details from the backend based on purchase vs sale
+    final party = isPurchase ? record.party : record.saleParty;
+
+    final name = party?.partyName ?? record.partyName;
+    final phone = party?.partyPhoneNumber ?? record.partyPhoneNumber;
+    final dlNo = party?.dlNumber ?? record.dlNumber;
+    final licNo = party?.licenseNumber ?? record.licenseNumber;
+
+    // Check if license number is null/empty and DL number exists
+    final showDl = (licNo == null || licNo.isEmpty) && (dlNo != null && dlNo.isNotEmpty);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4.0),
+          child: Text(
+            'Customer Details',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1E293B),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFF1F5F9), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              _buildDetailRow(
+                'Purchase Date',
+                isPurchase ? record.purchaseDate : (record.saleDate ?? record.purchaseDate),
+              ),
+              const SizedBox(height: 12),
+              _buildDetailRow('Customer Name', name),
+              const SizedBox(height: 12),
+              _buildDetailRow('Ph No', phone),
+              const SizedBox(height: 12),
+              if (showDl)
+                _buildDetailRow('DL No', dlNo)
+              else if (licNo != null && licNo.isNotEmpty)
+                _buildDetailRow('LIC No', licNo)
+              else
+                _buildDetailRow('LIC No', ''), // Fallback if both are empty
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF64748B),
+          ),
+        ),
+        Text(
+          value.isEmpty ? '---' : value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBentoCard({
     required IconData icon,
     required Color iconColor,
@@ -405,12 +638,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             ),
           ),
           SizedBox(height: 0.5.h),
-          Text(
-            value,
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: 12.sp,
+          SizedBox(
+            height: 18.sp,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12.sp,
+                ),
+              ),
             ),
           ),
           SizedBox(height: 0.5.h),
@@ -530,58 +771,19 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   }
 
   Widget _buildLoansList() {
-    final loansList = _customer.loans.isNotEmpty 
-        ? _customer.loans 
-        : [
-            CustomerLoan(
-              id: 1,
-              personId: 9,
-              loanPeriodType: 'MONTH',
-              loanPeriod: 12,
-              loanDate: '2024-04-15',
-              principalAmount: 232000.51,
-              interestRate: 10.0,
-              interestPaymentPeriodType: 'MONTHLY',
-              interestPaymentPeriod: 30,
-              status: 'Active',
-              note: '',
-              agreementImage: '',
-              totalPaidAmount: 200000.0,
-              pendingAmount: 32000.51,
-            ),
-            CustomerLoan(
-              id: 2,
-              personId: 9,
-              loanPeriodType: 'MONTH',
-              loanPeriod: 12,
-              loanDate: '2024-04-15',
-              principalAmount: 232000.51,
-              interestRate: 10.0,
-              interestPaymentPeriodType: 'MONTHLY',
-              interestPaymentPeriod: 30,
-              status: 'Active',
-              note: '',
-              agreementImage: '',
-              totalPaidAmount: 200000.0,
-              pendingAmount: 32000.51,
-            ),
-            CustomerLoan(
-              id: 3,
-              personId: 9,
-              loanPeriodType: 'MONTH',
-              loanPeriod: 12,
-              loanDate: '2024-04-15',
-              principalAmount: 232000.51,
-              interestRate: 10.0,
-              interestPaymentPeriodType: 'MONTHLY',
-              interestPaymentPeriod: 30,
-              status: 'Active',
-              note: '',
-              agreementImage: '',
-              totalPaidAmount: 200000.0,
-              pendingAmount: 32000.51,
-            ),
-          ];
+    if (_customer.loans.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.all(6.w),
+        child: Center(
+          child: Text(
+            'No loan accounts found.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
+          ),
+        ),
+      );
+    }
+
+    final loansList = _customer.loans;
 
     return ListView.builder(
       shrinkWrap: true,
@@ -635,7 +837,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Loan ${loan.id}',
+                              'Loan ${idx + 1}',
                               style: TextStyle(
                                 color: AppColors.textPrimary,
                                 fontWeight: FontWeight.bold,
@@ -719,7 +921,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             SizedBox(height: 1.5.h),
                             _buildLoanDetailsRow('Interest Rate', '${loan.interestRate.toStringAsFixed(0)}%'),
                             SizedBox(height: 1.5.h),
-                            _buildLoanDetailsRow('Interest Payment Period', loan.interestPaymentPeriodType.toUpperCase() == 'MONTHLY' ? 'Monthly / 30' : '${loan.interestPaymentPeriodType} / ${loan.interestPaymentPeriod}'),
+                            _buildLoanDetailsRow('Interest Payment Period', '${loan.interestPaymentPeriodType.toUpperCase() == 'MONTHLY' ? 'Monthly' : loan.interestPaymentPeriodType} / ${loan.interestPaymentPeriod}'),
                             SizedBox(height: 1.5.h),
                             
                             // Agreement Image
@@ -826,66 +1028,22 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   }
 
   Widget _buildPaymentHistoryList(int loanId) {
-    List<CustomerPaymentUpdate> payments = _customer.paymentUpdates.where((p) => p.loanId == loanId).toList();
+    final List<CustomerPaymentUpdate> payments = _customer.paymentUpdates.where((p) => p.loanId == loanId).toList();
     
     if (payments.isEmpty) {
-      payments = [
-        CustomerPaymentUpdate(
-          personId: 9,
-          loanId: loanId,
-          paymentDate: '2026-05-06',
-          interestAmount: 17000.0,
-          principalAmount: 0.0,
-          remainingBalance: 200000.51,
-          paymentType: 'INTEREST',
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 2.h),
+        child: Center(
+          child: Text(
+            'No payment history found.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 10.sp),
+          ),
         ),
-        CustomerPaymentUpdate(
-          personId: 9,
-          loanId: loanId,
-          paymentDate: '2026-04-05',
-          interestAmount: 17000.0,
-          principalAmount: 0.0,
-          remainingBalance: 249000.51,
-          paymentType: 'INTEREST',
-        ),
-        CustomerPaymentUpdate(
-          personId: 9,
-          loanId: loanId,
-          paymentDate: '2026-03-05',
-          interestAmount: 17000.0,
-          principalAmount: 0.0,
-          remainingBalance: 266000.51,
-          paymentType: 'INTEREST',
-        ),
-        CustomerPaymentUpdate(
-          personId: 9,
-          loanId: loanId,
-          paymentDate: '2026-02-05',
-          interestAmount: 17000.0,
-          principalAmount: 0.0,
-          remainingBalance: 283000.51,
-          paymentType: 'INTEREST',
-        ),
-        CustomerPaymentUpdate(
-          personId: 9,
-          loanId: loanId,
-          paymentDate: '2026-01-05',
-          interestAmount: 17000.0,
-          principalAmount: 0.0,
-          remainingBalance: 300000.51,
-          paymentType: 'INTEREST',
-        ),
-        CustomerPaymentUpdate(
-          personId: 9,
-          loanId: loanId,
-          paymentDate: '2025-12-05',
-          interestAmount: 17000.0,
-          principalAmount: 0.0,
-          remainingBalance: 317000.51,
-          paymentType: 'INTEREST',
-        ),
-      ];
+      );
     }
+
+    final bool showAll = _showAllPayments[loanId] ?? false;
+    final int displayCount = showAll ? payments.length : (payments.length > 5 ? 5 : payments.length);
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
@@ -899,7 +1057,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: payments.length,
+            itemCount: displayCount,
             separatorBuilder: (context, index) => const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
             itemBuilder: (context, index) {
               final payment = payments[index];
@@ -907,6 +1065,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 padding: EdgeInsets.symmetric(vertical: 1.5.h),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -919,37 +1078,73 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        SizedBox(height: 0.5.h),
+                        SizedBox(height: 1.h),
                         Text(
-                          payment.paymentType.toUpperCase() == 'INTEREST' ? 'Interest Amount' : 'Principal Amount Paid',
+                          'Interest Amount',
                           style: TextStyle(
-                            color: const Color(0xFF94A3B8),
-                            fontSize: 9.sp,
-                            fontWeight: FontWeight.w400,
+                            color: AppColors.textPrimary,
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
+                        if (payment.principalAmount > 0) ...[
+                          SizedBox(height: 1.h),
+                          Text(
+                            'Principal Amount Paid',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '₹ ${_formatIndianCurrency(payment.remainingBalance ?? 0.0)}',
+                          '₹ ${_formatIndianCurrency(payment.principalAmount + payment.interestAmount)}',
                           style: TextStyle(
                             color: AppColors.textPrimary,
-                            fontSize: 11.sp,
+                            fontSize: 13.sp,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(height: 0.5.h),
-                        Text(
-                          '₹ ${_formatIndianCurrency(payment.interestAmount > 0 ? payment.interestAmount : payment.principalAmount)}',
-                          style: TextStyle(
-                            color: const Color(0xFF10B981),
-                            fontSize: 10.sp,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        SizedBox(height: 1.h),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.south_west, size: 8.sp, color: Colors.green),
+                            SizedBox(width: 4),
+                            Text(
+                              '₹ ${_formatIndianCurrency(payment.interestAmount)}',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
+                        if (payment.principalAmount > 0) ...[
+                          SizedBox(height: 1.h),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.south_west, size: 8.sp, color: Colors.green),
+                              SizedBox(width: 4),
+                              Text(
+                                '₹ ${_formatIndianCurrency(payment.principalAmount)}',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -958,19 +1153,25 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             },
           ),
           
-          SizedBox(height: 1.5.h),
-          GestureDetector(
-            onTap: () {},
-            child: Text(
-              'View more',
-              style: TextStyle(
-                color: const Color(0xFF64748B),
-                fontSize: 10.sp,
-                fontWeight: FontWeight.bold,
-                decoration: TextDecoration.underline,
+          if (payments.length > 5) ...[
+            SizedBox(height: 1.5.h),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _showAllPayments[loanId] = !showAll;
+                });
+              },
+              child: Text(
+                showAll ? 'View less' : 'View more',
+                style: TextStyle(
+                  color: const Color(0xFF64748B),
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.underline,
+                ),
               ),
             ),
-          ),
+          ],
           SizedBox(height: 0.5.h),
         ],
       ),
@@ -978,71 +1179,37 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   }
 
   Widget _buildDuePaymentsTab() {
-    final duePayments = [];
-    if (_customer.loans.isNotEmpty) {
-      for (int i = 0; i < _customer.loans.length; i++) {
-        final loan = _customer.loans[i];
-        duePayments.add({
-          'loanIndex': i + 1,
-          'month': 'May',
-          'day': '11',
-          'remainingMonths': 11,
-          'totalAmount': loan.principalAmount,
-          'interestAmount': 17000.0,
-        });
-      }
-    } else {
-      duePayments.addAll([
-        {
-          'loanIndex': 1,
-          'month': 'May',
-          'day': '11',
-          'remainingMonths': 11,
-          'totalAmount': 232000.51,
-          'interestAmount': 17000.0,
-        },
-        {
-          'loanIndex': 2,
-          'month': 'May',
-          'day': '11',
-          'remainingMonths': 11,
-          'totalAmount': 232000.51,
-          'interestAmount': 17000.0,
-        },
-        {
-          'loanIndex': 3,
-          'month': 'May',
-          'day': '11',
-          'remainingMonths': 11,
-          'totalAmount': 232000.51,
-          'interestAmount': 17000.0,
-        },
-        {
-          'loanIndex': 4,
-          'month': 'May',
-          'day': '11',
-          'remainingMonths': 11,
-          'totalAmount': 232000.51,
-          'interestAmount': 17000.0,
-        },
-        {
-          'loanIndex': 5,
-          'month': 'May',
-          'day': '11',
-          'remainingMonths': 11,
-          'totalAmount': 232000.51,
-          'interestAmount': 17000.0,
-        },
-      ]);
+    if (_customer.dues.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.all(6.w),
+        child: Center(
+          child: Text(
+            'No due payments found.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
+          ),
+        ),
+      );
     }
 
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.symmetric(horizontal: 4.w),
-      itemCount: duePayments.length,
+      itemCount: _customer.dues.length,
       itemBuilder: (context, index) {
-        final item = duePayments[index];
+        final item = _customer.dues[index];
+
+        String monthStr = '';
+        String dayStr = '';
+        try {
+          final date = DateTime.parse(item.dueDate);
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          monthStr = months[date.month - 1];
+          dayStr = date.day.toString().padLeft(2, '0');
+        } catch (_) {
+          monthStr = item.dueMonth;
+        }
+
         return Container(
           margin: EdgeInsets.only(bottom: 2.h),
           padding: EdgeInsets.all(4.w),
@@ -1057,7 +1224,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    item['month'].toString(),
+                    monthStr,
                     style: TextStyle(
                       color: const Color(0xFF94A3B8),
                       fontSize: 8.sp,
@@ -1066,7 +1233,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   ),
                   SizedBox(height: 0.5.h),
                   Text(
-                    item['day'].toString(),
+                    dayStr,
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 14.sp,
@@ -1088,28 +1255,37 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          'Loan ${item['loanIndex']}',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11.sp,
-                          ),
-                        ),
-                        SizedBox(width: 1.w),
-                        Text(
-                          '(Remaining ${item['remainingMonths']} months)',
-                          style: TextStyle(
-                            color: const Color(0xFF94A3B8),
-                            fontSize: 9.sp,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
+                        (() {
+                          final loanIndex = _customer.loans.indexWhere((l) => l.id == item.loanId);
+                          final loan = loanIndex != -1 ? _customer.loans[loanIndex] : null;
+                          final remainingMonths = loan?.remainingMonths;
+                          return Text.rich(
+                            TextSpan(
+                              text: loanIndex != -1 ? 'Loan ${loanIndex + 1}' : 'Loan ${item.loanId}',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11.sp,
+                              ),
+                              children: [
+                                if (remainingMonths != null)
+                                  TextSpan(
+                                    text: ' (Remaining: $remainingMonths Months)',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.normal,
+                                      fontSize: 9.sp,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        })(),
                       ],
                     ),
                     SizedBox(height: 0.5.h),
                     Text(
-                      'Total Amount: ₹ ${_formatIndianCurrency(item['totalAmount'] as double)}',
+                      'Total Amount: ₹ ${_formatIndianCurrency(item.totalAmount.toDouble())}',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 10.sp,
@@ -1132,7 +1308,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                   ),
                   SizedBox(height: 0.5.h),
                   Text(
-                    '₹ ${_formatIndianCurrency(item['interestAmount'] as double)}',
+                    '₹ ${_formatIndianCurrency(item.interestAmount.toDouble())}',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.bold,
@@ -1219,6 +1395,18 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   }
 
   Widget _buildSellHistoryList() {
+    if (_customer.sellHistory.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.all(6.w),
+        child: Center(
+          child: Text(
+            'No sell records found.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
+          ),
+        ),
+      );
+    }
+
     return Column(
       children: [
         // Summary row for Sell History
@@ -1256,39 +1444,28 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         SizedBox(height: 2.h),
 
         // List
-        if (_customer.sellHistory.isEmpty)
-          Padding(
-            padding: EdgeInsets.all(6.w),
-            child: Center(
-              child: Text(
-                'No sell records found.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12.sp),
-              ),
-            ),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: 4.w),
-            itemCount: _customer.sellHistory.length,
-            itemBuilder: (context, index) {
-              final record = _customer.sellHistory[index];
-              final isExpanded = _sellExpanded[index] ?? false;
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: 4.w),
+          itemCount: _customer.sellHistory.length,
+          itemBuilder: (context, index) {
+            final record = _customer.sellHistory[index];
+            final isExpanded = _sellExpanded[index] ?? false;
 
-              return _buildHistoryAccordion(
-                index: index,
-                record: record,
-                isExpanded: isExpanded,
-                isPurchase: false,
-                onToggle: () {
-                  setState(() {
-                    _sellExpanded[index] = !isExpanded;
-                  });
-                },
-              );
-            },
-          ),
+            return _buildHistoryAccordion(
+              index: index,
+              record: record,
+              isExpanded: isExpanded,
+              isPurchase: false,
+              onToggle: () {
+                setState(() {
+                  _sellExpanded[index] = !isExpanded;
+                });
+              },
+            );
+          },
+        ),
       ],
     );
   }
@@ -1465,10 +1642,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  PartyDetailsCard(
-                    purchase: record,
-                    title: 'Customer Details',
-                  ),
+                  _buildCustomerDetailsCard(record, isPurchase),
                   SizedBox(height: 3.h),
                   
                   // Billed Items Table Header

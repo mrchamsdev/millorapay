@@ -51,7 +51,15 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase();
+    final trimmedQuery = _searchController.text.trim();
+    if (trimmedQuery.isEmpty) {
+      setState(() {
+        _filteredCustomers = _allCustomers;
+      });
+      return;
+    }
+
+    final query = trimmedQuery.toLowerCase();
     setState(() {
       _filteredCustomers = _allCustomers.where((c) {
         return c.name.toLowerCase().contains(query) ||

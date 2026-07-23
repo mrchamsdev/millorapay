@@ -39,8 +39,8 @@ class _GoldWelcomeScreenState extends State<GoldWelcomeScreen>
   // Biometric auto-login
   final _secureStorage = const FlutterSecureStorage();
   final _localAuth = LocalAuthentication();
-  bool _isFaceIdEnabled = false;
-  bool _isBioLoading = false;
+  // bool _isFaceIdEnabled = false;
+  // bool _isBioLoading = false;
 
   @override
   void initState() {
@@ -156,7 +156,7 @@ class _GoldWelcomeScreenState extends State<GoldWelcomeScreen>
 
     // After animations settle, check if Face ID was previously enabled.
     // If so, auto-trigger biometric login so user doesn't need to type credentials.
-    Future.delayed(const Duration(milliseconds: 800), _checkAndAutoLogin);
+    // Future.delayed(const Duration(milliseconds: 800), _checkAndAutoLogin);
   }
 
 
@@ -174,7 +174,7 @@ class _GoldWelcomeScreenState extends State<GoldWelcomeScreen>
     );
   }
 
-  /// Checks if the user previously enabled Face ID.
+  /* /// Checks if the user previously enabled Face ID.
   /// If so, silently prompts biometric authentication and logs in.
   Future<void> _checkAndAutoLogin() async {
     try {
@@ -236,7 +236,7 @@ class _GoldWelcomeScreenState extends State<GoldWelcomeScreen>
       if (mounted) setState(() => _isBioLoading = false);
       _showError('Biometric authentication failed.');
     }
-  }
+  } */
 
   @override
   void dispose() {

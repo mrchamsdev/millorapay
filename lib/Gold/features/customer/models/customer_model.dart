@@ -1,4 +1,5 @@
 import '../../gold/models/gold_purchase_model.dart';
+import '../../loans/models/loan_models.dart';
 
 class CustomerPaymentUpdate {
   final int? id;
@@ -66,6 +67,7 @@ class CustomerLoan {
   final double pendingAmount;
   final String status;
   final String note;
+  final int? remainingMonths;
 
   CustomerLoan({
     required this.id,
@@ -82,6 +84,7 @@ class CustomerLoan {
     required this.pendingAmount,
     required this.status,
     required this.note,
+    this.remainingMonths,
   });
 
   factory CustomerLoan.fromJson(Map<String, dynamic> json) {
@@ -100,6 +103,7 @@ class CustomerLoan {
       pendingAmount: _toDouble(json['pendingAmount']) ?? 0.0,
       status: json['status'] ?? '',
       note: json['note'] ?? '',
+      remainingMonths: json['remainingMonths'],
     );
   }
 
@@ -138,6 +142,8 @@ class Customer {
   final List<GoldPurchase> sellHistory;
   final List<CustomerLoan> loans;
   final List<CustomerPaymentUpdate> paymentUpdates;
+  final List<PersonDetails> persons;
+  final List<LoanDue> dues;
 
   Customer({
     this.id,
@@ -160,6 +166,8 @@ class Customer {
     this.sellHistory = const [],
     this.loans = const [],
     this.paymentUpdates = const [],
+    this.persons = const [],
+    this.dues = const [],
   });
 
   factory Customer.fromJson(Map<String, dynamic> json) {
@@ -170,9 +178,21 @@ class Customer {
     // Parse purchaseHistory list from either "purchases" or "purchaseHistory"
     final List<GoldPurchase> purchases = [];
     final rawPurchases = json['purchases'] ?? json['purchaseHistory'];
+    final rawParties = json['parties'] is List ? json['parties'] as List : [];
+
     if (rawPurchases != null && rawPurchases is List) {
       for (final item in rawPurchases) {
-        purchases.add(GoldPurchase.fromJson(Map<String, dynamic>.from(item)));
+        final Map<String, dynamic> itemMap = Map<String, dynamic>.from(item);
+        if (itemMap['party'] == null && itemMap['partyId'] != null) {
+          final matchedParty = rawParties.firstWhere(
+            (p) => p is Map && p['id'] == itemMap['partyId'],
+            orElse: () => null,
+          );
+          if (matchedParty != null) {
+            itemMap['party'] = Map<String, dynamic>.from(matchedParty);
+          }
+        }
+        purchases.add(GoldPurchase.fromJson(itemMap));
       }
     }
 
@@ -181,7 +201,26 @@ class Customer {
     final rawSales = json['sales'] ?? json['sellHistory'];
     if (rawSales != null && rawSales is List) {
       for (final item in rawSales) {
-        sales.add(GoldPurchase.fromJson(Map<String, dynamic>.from(item)));
+        final Map<String, dynamic> itemMap = Map<String, dynamic>.from(item);
+        if (itemMap['party'] == null && itemMap['partyId'] != null) {
+          final matchedParty = rawParties.firstWhere(
+            (p) => p is Map && p['id'] == itemMap['partyId'],
+            orElse: () => null,
+          );
+          if (matchedParty != null) {
+            itemMap['party'] = Map<String, dynamic>.from(matchedParty);
+          }
+        }
+        if (itemMap['saleParty'] == null && itemMap['salePartyId'] != null) {
+          final matchedSaleParty = rawParties.firstWhere(
+            (p) => p is Map && p['id'] == itemMap['salePartyId'],
+            orElse: () => null,
+          );
+          if (matchedSaleParty != null) {
+            itemMap['saleParty'] = Map<String, dynamic>.from(matchedSaleParty);
+          }
+        }
+        sales.add(GoldPurchase.fromJson(itemMap));
       }
     }
 
@@ -202,6 +241,49 @@ class Customer {
         parsedPaymentUpdates.add(CustomerPaymentUpdate.fromJson(Map<String, dynamic>.from(item)));
       }
     }
+
+    // Parse persons list from "persons"
+    final List<PersonDetails> parsedPersons = [];
+    final rawPersons = json['persons'];
+    if (rawPersons != null && rawPersons is List) {
+      for (final item in rawPersons) {
+        parsedPersons.add(PersonDetails.fromJson(Map<String, dynamic>.from(item)));
+      }
+    }
+
+    // Parse dues list from "dues" or "duePayments"
+    final List<LoanDue> parsedDues = [];
+    final rawDues = json['dues'] ?? json['duePayments'];
+    if (rawDues != null && rawDues is List) {
+      for (final item in rawDues) {
+        parsedDues.add(LoanDue.fromJson(Map<String, dynamic>.from(item)));
+      }
+    }
+
+    // Fallback: If no top-level dues are found, collect them from the nested loans list
+    if (parsedDues.isEmpty && rawLoans != null && rawLoans is List) {
+      for (final loanItem in rawLoans) {
+        if (loanItem is Map) {
+          final loanDues = loanItem['dues'];
+          final int loanId = loanItem['id'] ?? 0;
+          final int personId = loanItem['personId'] ?? 0;
+
+          if (loanDues != null && loanDues is List) {
+            for (final item in loanDues) {
+              if (item is Map) {
+                final Map<String, dynamic> itemMap = Map<String, dynamic>.from(item);
+                itemMap['loanId'] ??= loanId;
+                itemMap['personId'] ??= personId;
+                itemMap['personName'] ??= parsedName;
+
+                parsedDues.add(LoanDue.fromJson(itemMap));
+              }
+            }
+          }
+        }
+      }
+    }
+
 
     // If stats are not returned by the backend, dynamically compute them from history
     double computedPurchase = 0.0;
@@ -229,8 +311,16 @@ class Customer {
     final double? totalSaleVal = _toDouble(json['totalSaleAmount']) ?? _toDouble(json['totalSell']);
     final int? saleCountVal = json['totalSaleCount'] ?? json['sellTransactionsCount'];
 
+    int? apiDueCount = json['totalDueCount'];
+    if (apiDueCount == null && json['persons'] is List && (json['persons'] as List).isNotEmpty) {
+      final firstPerson = (json['persons'] as List)[0];
+      if (firstPerson is Map) {
+        apiDueCount = firstPerson['totalDueCount'];
+      }
+    }
+
     final double? totalDueVal = _toDouble(json['totalLoanDue']) ?? _toDouble(json['totalDue']);
-    final int? dueCountVal = json['totalLoanCount'] ?? json['duePaymentsCount'];
+    final int? dueCountVal = apiDueCount ?? json['totalLoanCount'] ?? json['duePaymentsCount'];
 
     return Customer(
       id: json['id'],
@@ -253,6 +343,8 @@ class Customer {
       sellHistory: sales,
       loans: parsedLoans,
       paymentUpdates: parsedPaymentUpdates,
+      persons: parsedPersons,
+      dues: parsedDues,
     );
   }
 

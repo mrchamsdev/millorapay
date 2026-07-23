@@ -322,12 +322,24 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
                           Text('₹ ${p.principalAmount + p.interestAmount}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                           const SizedBox(height: 12),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.north_east, size: 8, color: Colors.green),
                               const SizedBox(width: 4),
                               Text('₹ ${p.interestAmount}', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
                             ],
                           ),
+                          if (p.principalAmount > 0) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.north_east, size: 8, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text('₹ ${p.principalAmount}', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -936,12 +948,24 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
                           Text('₹ ${p.principalAmount + p.interestAmount}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                           const SizedBox(height: 12),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.north_east, size: 8, color: Colors.green),
                               const SizedBox(width: 4),
                               Text('₹ ${p.interestAmount}', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
                             ],
                           ),
+                          if (p.principalAmount > 0) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.north_east, size: 8, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text('₹ ${p.principalAmount}', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -1599,12 +1623,24 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
                           Text('₹ ${p.principalAmount + p.interestAmount}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                           const SizedBox(height: 12),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.north_east, size: 8, color: Colors.green),
                               const SizedBox(width: 4),
                               Text('₹ ${p.interestAmount}', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
                             ],
                           ),
+                          if (p.principalAmount > 0) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.north_east, size: 8, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text('₹ ${p.principalAmount}', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -1677,12 +1713,24 @@ class _LoanDetailsScreenState extends State<LoanDetailsScreen> {
                           Text('₹ ${p.principalAmount + p.interestAmount}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                           const SizedBox(height: 12),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.north_east, size: 8, color: Colors.green),
                               const SizedBox(width: 4),
                               Text('₹ ${p.interestAmount}', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
                             ],
                           ),
+                          if (p.principalAmount > 0) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.north_east, size: 8, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text('₹ ${p.principalAmount}', style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ],

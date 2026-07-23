@@ -125,7 +125,11 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
       } else if (field == 'expenseCategoryId') {
         changeTexts.add('Category updated');
       } else if (field == 'file') {
-        changeTexts.add('Receipt image updated');
+        if (newVal == 'none' || newVal.isEmpty) {
+          changeTexts.add('Receipt image removed');
+        } else {
+          changeTexts.add('Receipt image updated');
+        }
       } else if (field == 'note') {
         if (oldVal == 'none' || oldVal.isEmpty) {
           changeTexts.add("Note added: '$newVal'");
