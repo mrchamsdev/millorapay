@@ -37,7 +37,7 @@ class GoldApiConstants {
   static String get changeOldPassword => '$baseUrl/users/changeOldPassword';
 
   // ── Gold ──────────────────────────────────────────────────────────────────
-  
+
   static String get createGold => '$baseUrl/gold/createGold';
   static String get createItems => '$baseUrl/gold/createItems';
   static String updateParty(String id) => '$baseUrl/gold/updateParty/$id';
@@ -48,8 +48,6 @@ class GoldApiConstants {
   static String deleteParty(String id) => '$baseUrl/gold/party/$id';
   static String get allGoldPurchases => '$baseUrl/gold/allGoldPurchases';
   static String goldPurchaseById(String id) => '$baseUrl/gold/goldPurchase/$id';
-
-  
 
   // ── Loans ─────────────────────────────────────────────────────────────────
 
@@ -62,7 +60,8 @@ class GoldApiConstants {
   // ── Categories ────────────────────────────────────────────────────────────
 
   static String get expenseCategory => '$baseUrl/expenseCategory';
-  static String expenseCategoryById(String id) => '$baseUrl/expenseCategory/$id';
+  static String expenseCategoryById(String id) =>
+      '$baseUrl/expenseCategory/$id';
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
 
@@ -71,4 +70,11 @@ class GoldApiConstants {
   // ── Customers ─────────────────────────────────────────────────────────────
   static String get allCustomers => '$baseUrl/customer/all';
   static String get singleCustomer => '$baseUrl/customer/single';
+
+  // ── Branches ──────────────────────────────────────────────────────────────
+  static String get allBranches => '$baseUrl/branch/all';
+  static String get branch => '$baseUrl/branch';
+  static String deleteBranch(String id) => '$baseUrl/branch/delete/$id';
+  static String updateBranch(String id) => '$baseUrl/branch/update/$id';
+  static String singleBranch(String id) => '$baseUrl/branch/$id';
 }

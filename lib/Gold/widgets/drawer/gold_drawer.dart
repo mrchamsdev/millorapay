@@ -72,6 +72,14 @@ class GoldDrawer extends StatelessWidget {
                           Navigator.pushNamed(context, AppRoutes.customers);
                         },
                       ),
+                    _DrawerItem(
+                      icon: Icons.store_mall_directory_outlined,
+                      title: 'Branches',
+                      onTap: () {
+                        Navigator.pop(context); // Close Drawer
+                        Navigator.pushNamed(context, AppRoutes.branches);
+                      },
+                    ),
                   ],
                   
                   _SectionHeader(title: 'More Info & Support'),
