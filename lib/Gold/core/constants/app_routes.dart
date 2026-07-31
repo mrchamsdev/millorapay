@@ -48,6 +48,11 @@ class AppRoutes {
   static const String customers       = '/customers';
   static const String customerDetails = '/customer-details';
 
+  // ── Branches ──────────────────────────────────────────────────────────────
+  static const String branches        = '/branches';
+  static const String addBranch       = '/add-branch';
+  static const String branchDetails   = '/branch-details';
+
   // ── Navigation helpers ────────────────────────────────────────────────────
 
   static void push(

@@ -30,6 +30,10 @@ import '../../features/settings/screens/privacy_policy_screen.dart';
 import '../../features/customer/screens/customers_screen.dart';
 import '../../features/customer/screens/customer_details_screen.dart';
 import '../../features/customer/models/customer_model.dart';
+import '../../features/branch/screens/branches_screen.dart';
+import '../../features/branch/screens/add_branch_screen.dart';
+import '../../features/branch/screens/branch_details_screen.dart';
+import '../../features/branch/models/branch_model.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -126,6 +130,17 @@ class AppRouter {
       case AppRoutes.customerDetails:
         final customer = settings.arguments as Customer;
         return _slide(CustomerDetailsScreen(customer: customer));
+
+      case AppRoutes.branches:
+        return _slide(const BranchesScreen());
+        
+      case AppRoutes.addBranch:
+        final branch = settings.arguments as Branch?;
+        return _slide(AddBranchScreen(branchToEdit: branch));
+
+      case AppRoutes.branchDetails:
+        final branchId = settings.arguments as String;
+        return _slide(BranchDetailsScreen(branchId: branchId));
 
       // ── Unknown route ─────────────────────────────────────────────────────
       default:
