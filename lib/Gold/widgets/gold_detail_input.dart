@@ -126,9 +126,9 @@ class GoldDetailInputField extends StatelessWidget {
                               child: Text(
                                 value ?? hint ?? '---',
                                 style: TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.bold,
-                                  // color: value != null ? AppColors.textPrimary : AppColors.textHint,
+                                  color: const Color(0xFF727271),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -154,8 +154,9 @@ class GoldDetailInputField extends StatelessWidget {
                       inputFormatters: inputFormatters,
                       maxLength: maxLength,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
+                        color: Color(0xFF727271),
                       ),
                       decoration: InputDecoration(
                         filled: false,
@@ -173,7 +174,7 @@ class GoldDetailInputField extends StatelessWidget {
                         ),
                         hintText: hint ?? '---',
                         hintStyle: const TextStyle(
-                          color: AppColors.textHint,
+                          color: Color(0xFF727271),
                           fontSize: 10,
                         ),
                         errorText: errorText,

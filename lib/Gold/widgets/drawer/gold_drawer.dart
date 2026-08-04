@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart';
@@ -73,8 +74,12 @@ class GoldDrawer extends StatelessWidget {
                         },
                       ),
                     _DrawerItem(
-                      icon: Icons.store_mall_directory_outlined,
-                      title: 'Branches',
+                      iconWidget: SvgPicture.asset(
+                        'assets/images/Branch2.svg', // Replace with your SVG
+                        width: 16,
+                        height: 16,
+                      ),
+                      title: 'Branch',
                       onTap: () {
                         Navigator.pop(context); // Close Drawer
                         Navigator.pushNamed(context, AppRoutes.branches);
@@ -167,15 +172,17 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _DrawerItem extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final String title;
   final VoidCallback onTap;
 
   const _DrawerItem({
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     required this.title,
     required this.onTap,
-  });
+  }) : assert(icon != null || iconWidget != null);
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +196,9 @@ class _DrawerItem extends StatelessWidget {
               color: AppColors.modalIconBackground,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: AppColors.primaryBlue, size: 16),
+            child: Center(
+              child: iconWidget ?? Icon(icon!, color: AppColors.primaryBlue, size: 16),
+            ),
           ),
           title: Text(
             title,

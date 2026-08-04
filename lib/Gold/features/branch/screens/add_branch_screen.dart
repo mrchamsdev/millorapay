@@ -59,9 +59,9 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
       name: _nameCtrl.text.trim(),
       sector: _sectorCtrl.text.trim(),
       location: _locationCtrl.text.trim(),
-      radius: int.tryParse(_radiusCtrl.text.trim()) ?? 0,
-      latitude: double.tryParse(_latitudeCtrl.text.trim()) ?? 0.0,
-      longitude: double.tryParse(_longitudeCtrl.text.trim()) ?? 0.0,
+      radius: num.tryParse(_radiusCtrl.text.trim()) ?? 0,
+      latitude: num.tryParse(_latitudeCtrl.text.trim()) ?? 0,
+      longitude: num.tryParse(_longitudeCtrl.text.trim()) ?? 0,
     );
 
     bool success;
@@ -92,24 +92,28 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
               width: 100,
               child: Text(
                 label,
-                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: AppColors.textPrimary),
               ),
             ),
             Expanded(
               child: TextFormField(
                 controller: controller,
                 keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   isDense: true,
+                  filled: false,
+                  fillColor: Colors.transparent,
                   border: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey),
+                    borderSide: BorderSide(color: Color(0xFFF1F2F5)),
                   ),
                   enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey, width: 0.5),
+                    borderSide: BorderSide(color: Color(0xFFF1F2F5)),
                   ),
                   focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.primaryBlue),
+                    borderSide: BorderSide(color: AppColors.primaryBlue, width: 1.5),
                   ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   suffixIcon: suffixIcon,
                   suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                 ),
@@ -140,8 +144,8 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
           widget.branchToEdit != null ? 'Edit Branch' : 'Add Branch',
           style: const TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
           ),
         ),
         centerTitle: true,
@@ -155,29 +159,22 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
             children: [
               const Text(
                 'Branch Details',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Column(
                   children: [
                     _buildTextField('Name', _nameCtrl),
                     _buildTextField('Sector', _sectorCtrl),
-                    _buildTextField('Location', _locationCtrl, suffixIcon: const Icon(Icons.location_on, color: Colors.deepOrange)),
+                    _buildTextField('Location', _locationCtrl /*, suffixIcon: const Icon(Icons.location_on, color: Colors.deepOrange, size: 20)*/),
                     _buildTextField('Radius', _radiusCtrl, isNumber: true),
                     _buildTextField('Latitude', _latitudeCtrl, isNumber: true),
                     _buildTextField('Longitude', _longitudeCtrl, isNumber: true),
@@ -197,15 +194,16 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
             child: ElevatedButton(
               onPressed: _isSubmitting ? null : _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryBlue,
+                backgroundColor: const Color(0xFF003366),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(28),
                 ),
+                elevation: 0,
               ),
               child: _isSubmitting
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('SUBMIT', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  : const Text('Save', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
         ),

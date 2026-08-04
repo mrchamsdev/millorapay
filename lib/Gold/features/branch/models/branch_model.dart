@@ -4,9 +4,9 @@ class Branch {
   final String name;
   final String sector;
   final String location;
-  final int radius;
-  final double latitude;
-  final double longitude;
+  final num radius;
+  final num latitude;
+  final num longitude;
 
   Branch({
     this.id,
@@ -26,9 +26,15 @@ class Branch {
       name: json['name'] ?? '',
       sector: json['sector'] ?? '',
       location: json['location'] ?? '',
-      radius: json['radius'] is int ? json['radius'] : int.tryParse(json['radius']?.toString() ?? '0') ?? 0,
-      latitude: json['latitude'] is double ? json['latitude'] : double.tryParse(json['latitude']?.toString() ?? '0.0') ?? 0.0,
-      longitude: json['longitude'] is double ? json['longitude'] : double.tryParse(json['longitude']?.toString() ?? '0.0') ?? 0.0,
+      radius: json['radius'] is num
+          ? json['radius']
+          : (num.tryParse(json['radius']?.toString() ?? '0') ?? 0),
+      latitude: json['latitude'] is num
+          ? json['latitude']
+          : (num.tryParse(json['latitude']?.toString() ?? '0') ?? 0),
+      longitude: json['longitude'] is num
+          ? json['longitude']
+          : (num.tryParse(json['longitude']?.toString() ?? '0') ?? 0),
     );
   }
 

@@ -6,6 +6,8 @@ import '../../../widgets/gold_dialogs.dart';
 import '../../../widgets/gold_detail_input.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../../../core/network/gold_session.dart';
+import '../../branch/models/branch_model.dart';
+import '../../branch/repository/branch_repository.dart';
 import '../models/user_model.dart';
 import '../repository/user_repository.dart';
 
@@ -19,6 +21,7 @@ class AddUserModal extends StatefulWidget {
 
 class _AddUserModalState extends State<AddUserModal> {
   final _repository = UserRepository();
+  final _branchRepository = BranchRepository();
   
   final _nameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -26,7 +29,12 @@ class _AddUserModalState extends State<AddUserModal> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _roleController = TextEditingController();
+  final _branchController = TextEditingController();
   
+  Branch? _selectedBranch;
+  List<Branch> _branches = [];
+  bool _isLoadingBranches = false;
+
   bool _isLoading = false;
 
   Country _selectedCountry = Country(
@@ -57,6 +65,7 @@ class _AddUserModalState extends State<AddUserModal> {
   void initState() {
     super.initState();
     _initializeAccessList();
+    _fetchBranches();
 
     if (widget.user != null) {
       _nameController.text = widget.user!.name;
@@ -87,7 +96,128 @@ class _AddUserModalState extends State<AddUserModal> {
       }
       
       _roleController.text = widget.user!.role ?? '';
+      _branchController.text = widget.user!.branch ?? '';
     }
+  }
+
+  Future<void> _fetchBranches() async {
+    setState(() => _isLoadingBranches = true);
+    try {
+      final list = await _branchRepository.getAllBranches();
+      if (mounted) {
+        setState(() {
+          _branches = list;
+          _isLoadingBranches = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingBranches = false);
+    }
+  }
+
+  Future<void> _showBranchPicker() async {
+    if (_branches.isEmpty && !_isLoadingBranches) {
+      await _fetchBranches();
+    }
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.5,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text(
+                      'Select Branch',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  if (_isLoadingBranches)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: CircularProgressIndicator(color: AppColors.primaryBlue),
+                      ),
+                    )
+                  else if (_branches.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: Text(
+                          'No branches found',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _branches.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
+                        itemBuilder: (context, index) {
+                          final b = _branches[index];
+                          final isSelected = _selectedBranch?.id == b.id || _branchController.text == b.name;
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                            title: Text(
+                              b.name,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected ? AppColors.primaryBlue : AppColors.textPrimary,
+                              ),
+                            ),
+                            subtitle: b.location.isNotEmpty
+                                ? Text(
+                                    b.location,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  )
+                                : null,
+                            trailing: isSelected
+                                ? const Icon(Icons.check_circle, color: AppColors.primaryBlue, size: 20)
+                                : null,
+                            onTap: () {
+                              setState(() {
+                                _selectedBranch = b;
+                                _branchController.text = b.name;
+                              });
+                              Navigator.pop(context);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _initializeAccessList() {
@@ -201,6 +331,7 @@ class _AddUserModalState extends State<AddUserModal> {
     _emailController.dispose();
     _phoneController.dispose();
     _roleController.dispose();
+    _branchController.dispose();
     super.dispose();
   }
 
@@ -215,6 +346,11 @@ class _AddUserModalState extends State<AddUserModal> {
         .map((a) => a.module)
         .toList();
 
+    Branch? selectedBranch;
+    try {
+      selectedBranch = _branches.firstWhere((b) => b.name == _branchController.text.trim());
+    } catch (_) {}
+
     final user = User(
       id: widget.user?.id,
       name: _nameController.text.trim(),
@@ -223,6 +359,8 @@ class _AddUserModalState extends State<AddUserModal> {
       email: _emailController.text.trim(),
       phoneNumber: '+${_selectedCountry.phoneCode}${_phoneController.text.trim()}',
       role: _roleController.text.trim(),
+      branch: _branchController.text.trim(),
+      branchId: selectedBranch != null ? int.tryParse(selectedBranch.id ?? '') : null,
       createdBy: widget.user == null ? (GoldSession.instance.userId ?? 1) : widget.user?.createdBy,
       modules: activeModules,
       userAccess: _accessList,
@@ -350,6 +488,13 @@ class _AddUserModalState extends State<AddUserModal> {
                         label: 'Role',
                         controller: _roleController,
                         hint: 'Enter role',
+                      ),
+                      GoldDetailInputField(
+                        label: 'Branch',
+                        value: _branchController.text.isNotEmpty ? _branchController.text : null,
+                        hint: 'Select branch',
+                        onTap: _showBranchPicker,
+                        suffixIcon: Icons.keyboard_arrow_down_rounded,
                         showBottomBorder: false,
                       ),
                     ],

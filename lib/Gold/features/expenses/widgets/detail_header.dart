@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'image_gallery_viewer.dart';
 
 class DetailHeader extends StatelessWidget {
   final String title;
@@ -10,8 +11,12 @@ class DetailHeader extends StatelessWidget {
   final String date;
   final String addedBy;
   final String? fileUrl;
+  final List<String>? allFileUrls; // all images for gallery
   final String? iconUrl;
   final String currencySymbol;
+  final String? branchName;
+  final String? paidBy;
+  final List<String>? quantities;
 
   const DetailHeader({
     super.key,
@@ -20,8 +25,12 @@ class DetailHeader extends StatelessWidget {
     required this.date,
     required this.addedBy,
     this.fileUrl,
+    this.allFileUrls,
     this.iconUrl,
     this.currencySymbol = '₹',
+    this.branchName,
+    this.paidBy,
+    this.quantities,
   });
 
   @override
@@ -70,8 +79,14 @@ class DetailHeader extends StatelessWidget {
                 style: AppTextStyles.h1.copyWith(fontSize: 10.sp, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 8),
+              if (branchName != null && branchName!.isNotEmpty)
+                _buildInfoText('Branch: $branchName'),
               _buildInfoText('Bill Date: $date'),
               _buildInfoText('Added by: $addedBy'),
+              if (paidBy != null && paidBy!.isNotEmpty)
+                _buildInfoText('Paid by: $paidBy'),
+              if (quantities != null && quantities!.isNotEmpty)
+                _buildInfoText('Quantity: ${quantities!.join(', ')}'),
             ],
           ),
         ),
@@ -91,47 +106,25 @@ class DetailHeader extends StatelessWidget {
   }
 
   Widget _buildReceiptImage(BuildContext context) {
-    final hasImage = fileUrl != null && fileUrl!.isNotEmpty;
+    // Combine allFileUrls and single fileUrl into a deduplicated list
+    final List<String> images = [];
+    if (allFileUrls != null && allFileUrls!.isNotEmpty) {
+      images.addAll(allFileUrls!);
+    } else if (fileUrl != null && fileUrl!.isNotEmpty) {
+      images.add(fileUrl!);
+    }
+
+    final hasImage = images.isNotEmpty;
+
     return GestureDetector(
       onTap: hasImage
           ? () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => Scaffold(
-                    backgroundColor: Colors.black,
-                    appBar: AppBar(
-                      backgroundColor: Colors.black,
-                      elevation: 0,
-                      leading: IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      title: const Text(
-                        'Receipt Preview',
-                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      centerTitle: true,
-                    ),
-                    body: Center(
-                      child: InteractiveViewer(
-                        panEnabled: true,
-                        boundaryMargin: const EdgeInsets.all(20),
-                        minScale: 0.5,
-                        maxScale: 4.0,
-                        child: Image.network(
-                          fileUrl!,
-                          fit: BoxFit.contain,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(child: CircularProgressIndicator(color: Colors.white));
-                          },
-                          errorBuilder: (_, __, ___) => const Center(
-                            child: Icon(Icons.broken_image_outlined, color: Colors.white70, size: 60),
-                          ),
-                        ),
-                      ),
-                    ),
+                  builder: (context) => ImageGalleryViewer(
+                    imageUrls: images,
+                    initialIndex: 0,
                   ),
                 ),
               );
@@ -147,19 +140,46 @@ class DetailHeader extends StatelessWidget {
             color: AppColors.divider,
           ),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(11),
-          child: hasImage
-              ? Image.network(
-                  fileUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Center(
-                    child: Icon(Icons.broken_image_outlined, color: AppColors.iconLight, size: 40),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(11),
+              child: hasImage
+                  ? Image.network(
+                      images.first,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(Icons.broken_image_outlined,
+                            color: AppColors.iconLight, size: 40),
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.image_outlined,
+                          color: AppColors.iconLight, size: 40),
+                    ),
+            ),
+            if (images.length > 1)
+              Positioned(
+                bottom: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                )
-              : const Center(
-                  child: Icon(Icons.image_outlined, color: AppColors.iconLight, size: 40),
+                  child: Text(
+                    '+${images.length - 1}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
+              ),
+          ],
         ),
       ),
     );

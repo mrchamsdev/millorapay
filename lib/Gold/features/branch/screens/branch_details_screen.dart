@@ -37,40 +37,59 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> {
     }
   }
 
-  Widget _buildDetailRow(String label, String value, {IconData? icon}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey),
-            ),
-          ),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 16, color: AppColors.primaryBlue),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    value,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+  Widget _buildDetailRow(String label, String value) {
+    const double labelFontSize = 14;
+    const double valueFontSize = labelFontSize - 2; // always 2 less than label
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label + inline value row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 100,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: labelFontSize,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
-      ),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFFF1F2F5)),
+                  ),
+                ),
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: valueFontSize,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF727271),
+                  ),
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ],
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -84,8 +103,8 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> {
           'Branch Details',
           style: TextStyle(
             color: AppColors.textPrimary,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
           ),
         ),
         centerTitle: true,
@@ -99,78 +118,30 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        '${_branch!.name} Branch Details',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryBlue.withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.store_mall_directory,
-                                    color: AppColors.primaryBlue,
-                                    size: 28,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _branch!.name,
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _branch!.sector,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 32),
-                            const Text(
-                              'Location Details',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryBlue,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            _buildDetailRow('Address', _branch!.location, icon: Icons.location_on),
-                            const Divider(),
-                            _buildDetailRow('Radius', '${_branch!.radius} meters'),
-                            const Divider(),
-                            _buildDetailRow('Coordinates', '${_branch!.latitude}, ${_branch!.longitude}'),
+                            _buildDetailRow('Name', _branch!.name),
+                            _buildDetailRow('Sector', _branch!.sector),
+                            _buildDetailRow('Location', _branch!.location),
+                            _buildDetailRow('Radius', _branch!.radius.toString()),
+                            _buildDetailRow('Latitude', _branch!.latitude.toString()),
+                            _buildDetailRow('Longitude', _branch!.longitude.toString()),
                           ],
                         ),
                       ),
@@ -180,3 +151,4 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> {
     );
   }
 }
+

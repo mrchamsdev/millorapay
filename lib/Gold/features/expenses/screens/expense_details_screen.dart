@@ -24,6 +24,7 @@ class ExpenseDetailsScreen extends StatefulWidget {
 
 class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
   final ExpenseRepository _repository = ExpenseRepository();
+
   late Expense _expense;
   bool _isLoading = false;
   bool _hasChanges = false;
@@ -121,9 +122,15 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
       if (field == 'amount') {
         changeTexts.add('Amount changed from ${_expense.currencySymbol}$oldVal to ${_expense.currencySymbol}$newVal');
       } else if (field == 'description') {
-        changeTexts.add("Description updated to '$newVal'");
+        changeTexts.add("Description changed from '$oldVal' to '$newVal'");
       } else if (field == 'expenseCategoryId') {
-        changeTexts.add('Category updated');
+        changeTexts.add("Category changed from '$oldVal' to '$newVal'");
+      } else if (field == 'branchId') {
+        changeTexts.add('Branch changed');
+      } else if (field == 'paidBy') {
+        changeTexts.add('Paid by changed');
+      } else if (field == 'quantity') {
+        changeTexts.add("Quantity changed from '$oldVal' to '$newVal'");
       } else if (field == 'file') {
         if (newVal == 'none' || newVal.isEmpty) {
           changeTexts.add('Receipt image removed');
@@ -157,6 +164,31 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
     });
 
     return '- ' + changeTexts.join('\n- ');
+  }
+
+  List<ExpenseHistoryItem> get _filteredHistory {
+    if (_expense.history == null || _expense.history!.isEmpty) return [];
+    
+    DateTime? expenseCreated;
+    if (_expense.createdAt != null) {
+      expenseCreated = DateTime.tryParse(_expense.createdAt!);
+    }
+
+    return _expense.history!.where((item) {
+      if (item.updatedAt == null || expenseCreated == null) return true;
+      
+      final itemUpdated = DateTime.tryParse(item.updatedAt!);
+      if (itemUpdated == null) return true;
+
+      final diff = itemUpdated.difference(expenseCreated).inSeconds.abs();
+      if (diff <= 45) {
+        final changes = item.changes?.keys.toList() ?? [];
+        if (changes.length == 1 && (changes.contains('file') || changes.contains('files'))) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
   }
 
   @override
@@ -226,8 +258,12 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
                       date: _formatDateString(_expense.expenseDate),
                       addedBy: _expense.user?.name ?? '',
                       fileUrl: _expense.file,
+                      allFileUrls: _expense.files,
                       iconUrl: _expense.expenseCategory?.icon,
                       currencySymbol: _expense.currencySymbol,
+                      branchName: _expense.branch?.name,
+                      paidBy: _expense.paidByUser?.name,
+                      quantities: _expense.quantities,
                     ),
                     SizedBox(height: 1.5.h),
                     const Divider(color: Color(0xFFF1F2F5)),
@@ -242,7 +278,7 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 13.sp)),
                     SizedBox(height: 2.h),
-                    _expense.history == null || _expense.history!.isEmpty
+                    _filteredHistory.isEmpty
                         ? Padding(
                             padding: EdgeInsets.symmetric(vertical: 1.5.h),
                             child: Text(
@@ -255,9 +291,9 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
                         : ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _expense.history!.length,
+                            itemCount: _filteredHistory.length,
                             itemBuilder: (context, idx) {
-                              final item = _expense.history![idx];
+                              final item = _filteredHistory[idx];
                               final dateFormatted = item.updatedAt != null
                                   ? _formatDateString(item.updatedAt!)
                                   : 'Recent';
