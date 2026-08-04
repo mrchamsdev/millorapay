@@ -27,27 +27,88 @@ class CategoryRepository {
     }
   }
 
-  /// Create a new category
-  /// POST /api/expenseCategory
+  /// Fetch a single category by ID
+  /// GET /api/expenseCategory/:id
+  Future<ExpenseCategory?> getCategoryById(int id) async {
+    try {
+      final url = GoldApiConstants.expenseCategoryById(id.toString());
+      if (kDebugMode) debugPrint('🌐 GET CATEGORY BY ID: $url');
+      
+      final response = await _dio.get(url);
+      
+      if (kDebugMode) debugPrint('📦 GET CATEGORY BY ID RESPONSE: ${response.data}');
+      
+      if (response.statusCode == 200) {
+        final data = response.data['data'];
+        if (data != null) {
+          return ExpenseCategory.fromJson(data);
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ GET CATEGORY BY ID ERROR: $e');
+      rethrow;
+    }
+  }
+
+  /// Create a new category (2-step flow)
+  /// Step 1: POST text data as application/json
+  /// Step 2: PUT icon file as multipart/form-data if filePath is provided
   Future<bool> createCategory(ExpenseCategory category, {String? filePath}) async {
     try {
       final url = GoldApiConstants.expenseCategory;
-      // Always send multipart/form-data to ensure server parses body correctly
-      dynamic payload = FormData.fromMap({
+      // Step 1: Send text data as standard JSON
+      final payload = {
         'name': category.name,
         'type': category.type ?? 'Personal',
-        if (filePath != null) 'icon': await MultipartFile.fromFile(filePath, filename: filePath.split('/').last),
-      });
+        'quantity': category.quantity ?? [],
+      };
 
       if (kDebugMode) {
-        debugPrint('🌐 CREATE CATEGORY: $url');
-        debugPrint('📦 PAYLOAD: ${filePath != null ? 'FormData (with file)' : payload}');
+        debugPrint('🌐 CREATE CATEGORY (Step 1 - JSON POST): $url');
+        debugPrint('📦 PAYLOAD: $payload');
       }
 
       final response = await _dio.post(url, data: payload);
-      return response.statusCode == 200 || response.statusCode == 201;
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Step 2: If file is selected, trigger PUT call with FormData
+        if (filePath != null && filePath.isNotEmpty && response.data != null) {
+          final data = response.data['data'];
+          final id = data != null ? (data['id'] ?? data['_id']) : null;
+          if (id != null) {
+            final categoryId = int.tryParse(id.toString());
+            if (categoryId != null) {
+              await uploadCategoryIcon(categoryId, filePath);
+            }
+          }
+        }
+        return true;
+      }
+      return false;
     } catch (e) {
       if (kDebugMode) debugPrint('❌ CREATE CATEGORY ERROR: $e');
+      return false;
+    }
+  }
+
+  /// Upload category icon via PUT (multipart/form-data)
+  Future<bool> uploadCategoryIcon(int id, String filePath) async {
+    try {
+      final url = GoldApiConstants.expenseCategoryById(id.toString());
+      final formData = FormData.fromMap({
+        'icon': await MultipartFile.fromFile(filePath, filename: filePath.split('/').last),
+      });
+
+      if (kDebugMode) {
+        debugPrint('🌐 UPLOAD CATEGORY ICON (Step 2 - PUT FormData): $url');
+        debugPrint('📁 FILE PATH: $filePath');
+      }
+
+      final response = await _dio.put(url, data: formData);
+      return response.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) debugPrint('❌ UPLOAD CATEGORY ICON ERROR: $e');
       return false;
     }
   }
@@ -57,17 +118,34 @@ class CategoryRepository {
   Future<bool> updateCategory(int id, ExpenseCategory category, {String? filePath}) async {
     try {
       final url = GoldApiConstants.expenseCategoryById(id.toString());
-      dynamic payload = FormData.fromMap({
-        'name': category.name,
-        if (filePath != null) 'icon': await MultipartFile.fromFile(filePath, filename: filePath.split('/').last),
-      });
+      dynamic payload;
+
+      if (filePath != null && filePath.isNotEmpty) {
+        payload = FormData.fromMap({
+          'name': category.name,
+          'type': category.type ?? 'Personal',
+          'quantity': category.quantity ?? [],
+          'icon': await MultipartFile.fromFile(filePath, filename: filePath.split('/').last),
+        });
+      } else {
+        payload = {
+          'name': category.name,
+          'type': category.type ?? 'Personal',
+          'quantity': category.quantity ?? [],
+        };
+      }
 
       if (kDebugMode) {
         debugPrint('🌐 UPDATE CATEGORY: $url');
-        debugPrint('📦 PAYLOAD: ${filePath != null ? 'FormData (with file)' : payload}');
+        debugPrint('📦 PUT PAYLOAD: $payload');
       }
 
       final response = await _dio.put(url, data: payload);
+      
+      if (kDebugMode) {
+        debugPrint('📦 UPDATE CATEGORY RESPONSE: ${response.data}');
+      }
+      
       return response.statusCode == 200;
     } catch (e) {
       if (kDebugMode) debugPrint('❌ UPDATE CATEGORY ERROR: $e');

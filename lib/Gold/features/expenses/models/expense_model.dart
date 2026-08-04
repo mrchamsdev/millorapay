@@ -1,3 +1,4 @@
+import '../../branch/models/branch_model.dart';
 import '../../categories/models/category_model.dart';
 import 'package:currency_picker/currency_picker.dart';
 
@@ -105,6 +106,10 @@ class Expense {
   final ExpenseCategory? expenseCategory;
   final ExpenseCompany? company;
   final ExpenseUser? user;
+  final ExpenseUser? paidByUser;
+  final Branch? branch;
+  final List<String>? quantities;
+  final List<String>? files;
 
   Expense({
     this.id,
@@ -128,6 +133,10 @@ class Expense {
     this.expenseCategory,
     this.company,
     this.user,
+    this.paidByUser,
+    this.branch,
+    this.quantities,
+    this.files,
   });
 
   String get currencySymbol {
@@ -153,6 +162,25 @@ class Expense {
     }
 
     final rawHistory = json['history'] as List<dynamic>? ?? [];
+    
+    List<String>? parsedQuantities;
+    if (json['quantity'] is List) {
+      parsedQuantities = (json['quantity'] as List).map((e) => e.toString()).toList();
+    } else if (json['quantity'] != null && json['quantity'].toString().isNotEmpty) {
+      parsedQuantities = [json['quantity'].toString()];
+    }
+
+    List<String>? parsedFiles;
+    String? firstFile;
+    if (json['file'] is List) {
+      parsedFiles = (json['file'] as List).map((e) => e.toString()).toList();
+      if (parsedFiles.isNotEmpty) {
+        firstFile = parsedFiles.first;
+      }
+    } else if (json['file'] != null && json['file'].toString().isNotEmpty) {
+      firstFile = json['file'].toString();
+      parsedFiles = [firstFile];
+    }
 
     return Expense(
       id: json['id'],
@@ -164,7 +192,7 @@ class Expense {
       description: json['description'] ?? '',
       comment: json['comment'],
       note: json['note'],
-      file: json['file'],
+      file: firstFile,
       userId: json['userId'],
       createdBy: json['createdBy'],
       updatedBy: json['updatedBy'],
@@ -182,6 +210,14 @@ class Expense {
       user: json['user'] != null
           ? ExpenseUser.fromJson(json['user'])
           : null,
+      paidByUser: json['paidByUser'] != null
+          ? ExpenseUser.fromJson(json['paidByUser'])
+          : null,
+      branch: json['branch'] != null
+          ? Branch.fromJson(json['branch'])
+          : null,
+      quantities: parsedQuantities,
+      files: parsedFiles,
     );
   }
 

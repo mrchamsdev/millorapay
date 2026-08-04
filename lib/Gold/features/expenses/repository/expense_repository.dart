@@ -56,6 +56,9 @@ class ExpenseRepository {
     required String description,
     String? comment,
     String? note,
+    int? paidBy,
+    int? branchId,
+    String? quantity,
   }) async {
     try {
       const url = '/expense';
@@ -68,6 +71,9 @@ class ExpenseRepository {
         'description': description,
         if (comment != null) 'comment': comment,
         if (note != null) 'note': note,
+        if (paidBy != null) 'paidBy': paidBy,
+        if (branchId != null) 'branchId': branchId,
+        if (quantity != null) 'quantity': quantity,
       };
       
       if (kDebugMode) {
@@ -100,7 +106,10 @@ class ExpenseRepository {
     required String description,
     String? comment,
     String? note,
-    String? file,
+    List<String>? file,
+    int? paidBy,
+    int? branchId,
+    String? quantity,
   }) async {
     try {
       final url = '/expense/update/$id';
@@ -113,6 +122,9 @@ class ExpenseRepository {
         'description': description,
         if (comment != null) 'comment': comment,
         if (note != null) 'note': note,
+        if (paidBy != null) 'paidBy': paidBy,
+        if (branchId != null) 'branchId': branchId,
+        if (quantity != null) 'quantity': quantity,
         'file': file,
       };
 

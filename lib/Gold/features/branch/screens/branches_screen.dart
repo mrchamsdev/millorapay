@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
+import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../models/branch_model.dart';
 import '../repository/branch_repository.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class BranchesScreen extends StatefulWidget {
   const BranchesScreen({super.key});
@@ -100,6 +102,26 @@ class _BranchesScreenState extends State<BranchesScreen> {
     }
   }
 
+  Widget _buildAddButton() {
+    return SizedBox(
+      height: 36,
+      child: ElevatedButton(
+        onPressed: () async {
+          final result = await Navigator.pushNamed(context, AppRoutes.addBranch);
+          if (result == true) {
+            _fetchBranches();
+          }
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryBlue,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+        child: const Text('+ Add', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,46 +140,29 @@ class _BranchesScreenState extends State<BranchesScreen> {
         ),
         centerTitle: true,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final result = await Navigator.pushNamed(context, AppRoutes.addBranch);
-                if (result == true) {
-                  _fetchBranches();
-                }
-              },
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryBlue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-            ),
-          ),
+          _buildAddButton(),
+          const SizedBox(width: 16),
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Container(
+              height: 48,
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: const Color(0xFFF1F2F5),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: TextField(
                 controller: _searchController,
                 decoration: const InputDecoration(
                   hintText: 'Search',
-                  prefixIcon: Icon(Icons.search, color: Colors.grey),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey, size: 20),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
             ),
@@ -165,12 +170,13 @@ class _BranchesScreenState extends State<BranchesScreen> {
           
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
                 : _filteredBranches.isEmpty
                     ? const Center(child: Text('No branches found.'))
                     : ListView.separated(
+                        padding: const EdgeInsets.only(bottom: 20),
                         itemCount: _filteredBranches.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
                         itemBuilder: (context, index) {
                           final branch = _filteredBranches[index];
                           return ListTile(
@@ -182,17 +188,17 @@ class _BranchesScreenState extends State<BranchesScreen> {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             title: Text(
                               branch.name,
-                              style: const TextStyle(fontWeight: FontWeight.w500),
+                              style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
                             ),
                             subtitle: Text(
                               branch.location,
-                              style: const TextStyle(color: Colors.grey),
+                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.edit_outlined),
+                                  icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
                                   onPressed: () async {
                                     final result = await Navigator.pushNamed(context, AppRoutes.addBranch, arguments: branch);
                                     if (result == true) {
@@ -201,7 +207,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
                                   },
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline),
+                                  icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
                                   onPressed: () {
                                     _showDeleteConfirmation(branch);
                                   },
@@ -217,3 +223,4 @@ class _BranchesScreenState extends State<BranchesScreen> {
     );
   }
 }
+

@@ -8,6 +8,8 @@ import '../../../widgets/no_access_widget.dart';
 import '../models/category_model.dart';
 import '../repository/category_repository.dart';
 import 'add_category_modal.dart';
+import 'view_category_screen.dart';
+import 'edit_category_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class CategoryScreen extends StatefulWidget {
@@ -147,7 +149,16 @@ class _CategoryScreenState extends State<CategoryScreen> {
                       itemBuilder: (context, index) {
                         final category = _filteredCategories[index];
                         return ListTile(
-                          onTap: canWrite ? () => _showAddEditModal(category: category) : null,
+                          onTap: () {
+                            if (category.id != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ViewCategoryScreen(categoryId: category.id!),
+                                ),
+                              ).then((_) => _fetchCategories());
+                            }
+                          },
                           leading: category.icon != null && category.icon!.isNotEmpty
                               ? SizedBox(
                                   width: 30,
@@ -184,9 +195,28 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
                           ),
                           trailing: canWrite
-                              ? IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.grey, size: 22),
-                                  onPressed: () => _handleDelete(category),
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
+                                      onPressed: () async {
+                                        final result = await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => EditCategoryScreen(categoryId: category.id!),
+                                          ),
+                                        );
+                                        if (result == true) {
+                                          _fetchCategories();
+                                        }
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
+                                      onPressed: () => _handleDelete(category),
+                                    ),
+                                  ],
                                 )
                               : null,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

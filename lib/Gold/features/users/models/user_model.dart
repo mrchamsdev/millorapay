@@ -29,6 +29,8 @@ class User {
   final String? email;
   final String? phoneNumber;
   final String? role;
+  final String? branch;
+  final int? branchId;
   final String? gender;
   final String? accountStatus;
   final String? createdDate;
@@ -43,6 +45,8 @@ class User {
     this.email,
     this.phoneNumber,
     this.role,
+    this.branch,
+    this.branchId,
     this.gender,
     this.accountStatus,
     this.createdDate,
@@ -58,6 +62,10 @@ class User {
         email: json['email'],
         phoneNumber: json['phoneNumber'],
         role: json['role'],
+        branch: json['branch'] is Map ? json['branch']['name'] : json['branch'],
+        branchId: json['branch'] is Map
+            ? (json['branch']['id'] is int ? json['branch']['id'] : int.tryParse(json['branch']['id']?.toString() ?? ''))
+            : (json['branchId'] is int ? json['branchId'] : int.tryParse(json['branchId']?.toString() ?? '')),
         gender: json['gender'],
         accountStatus: json['accountStatus'],
         createdDate: json['createdDate'] ?? json['createdAt'],
@@ -76,6 +84,8 @@ class User {
         if (email != null) 'email': email,
         if (phoneNumber != null) 'phoneNumber': phoneNumber,
         if (role != null) 'role': role,
+        if (branch != null) 'branch': branch,
+        if (branchId != null) 'branchId': branchId,
         if (gender != null) 'gender': gender,
         if (createdBy != null) 'createdBy': createdBy,
         'modules': modules,
