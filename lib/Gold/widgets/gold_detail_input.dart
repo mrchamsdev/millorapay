@@ -95,7 +95,7 @@ class GoldDetailInputField extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
               ),
@@ -103,48 +103,51 @@ class GoldDetailInputField extends StatelessWidget {
           ),
           Expanded(
             flex: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                border: showBottomBorder
-                    ? const Border(
-                        bottom: BorderSide(
-                          color: Color(0xFFF1F2F5), // Very light gray from image
-                          width: 1.0,
-                        ),
-                      )
-                    : null,
-              ),
-              child: isTappable
-                  ? GestureDetector(
-                      onTap: onTap,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                value ?? hint ?? '---',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF727271),
-                                ),
-                                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      border: showBottomBorder
+                          ? const Border(
+                              bottom: BorderSide(
+                                color: Color(0xFFF1F2F5),
+                                width: 1.0,
+                              ),
+                            )
+                          : null,
+                    ),
+                    child: isTappable
+                        ? GestureDetector(
+                            onTap: onTap,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      value ?? hint ?? '---',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF727271),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (resolvedIcon != null) ...[
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      resolvedIcon,
+                                      size: 20,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
-                            if (resolvedIcon != null) ...[
-                              const SizedBox(width: 8),
-                              Icon(
-                                resolvedIcon,
-                                size: 20,
-                                color: AppColors.textPrimary,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    )
+                          )
                   : TextField(
                       controller: controller,
                       textAlign: textAlign,
@@ -154,7 +157,7 @@ class GoldDetailInputField extends StatelessWidget {
                       inputFormatters: inputFormatters,
                       maxLength: maxLength,
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF727271),
                       ),
@@ -175,17 +178,26 @@ class GoldDetailInputField extends StatelessWidget {
                         hintText: hint ?? '---',
                         hintStyle: const TextStyle(
                           color: Color(0xFF727271),
-                          fontSize: 10,
-                        ),
-                        errorText: errorText,
-                        errorStyle: const TextStyle(
-                          fontSize: 9,
-                          color: Colors.redAccent,
+                          fontSize: 11,
                         ),
                         counterText: '',
                         contentPadding: const EdgeInsets.symmetric(vertical: 10),
                       ),
                     ),
+                  ),
+                  if (errorText != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, bottom: 4),
+                      child: Text(
+                        errorText!,
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: Colors.redAccent,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                ],
             ),
           ),
         ],

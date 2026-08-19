@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/gold_back_button.dart';
+import '../../../widgets/gold_dialogs.dart';
 import '../models/branch_model.dart';
 import '../repository/branch_repository.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -45,7 +46,10 @@ class _BranchesScreenState extends State<BranchesScreen> {
         _isLoading = false;
       });
     } catch (_) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        GoldDialogs.showSnackBar(context, 'Failed to load branches', isError: true);
+      }
     }
   }
 

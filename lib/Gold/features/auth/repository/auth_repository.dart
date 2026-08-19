@@ -119,6 +119,7 @@ class AuthRepository {
       companyType:         res.companyType,
       companyName:         res.companyName,
       passwordChangedDate: res.passwordChangedDate,
+      userRole:            res.role,
       userAccess:          res.userAccess,
     );
   }

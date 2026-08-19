@@ -25,6 +25,7 @@ class AppRoutes {
   static const String categoryPicker = '/category-picker';
   static const String currencyPicker = '/currency-picker';
   static const String addNote        = '/add-note';
+  static const String reports        = '/reports';
 
   // ── Gold ──────────────────────────────────────────────────────────────────
   static const String gold           = '/gold';
@@ -52,6 +53,12 @@ class AppRoutes {
   static const String branches        = '/branches';
   static const String addBranch       = '/add-branch';
   static const String branchDetails   = '/branch-details';
+
+  // ── Units ─────────────────────────────────────────────────────────────────
+  static const String units           = '/units';
+
+  // ── Services ──────────────────────────────────────────────────────────────
+  static const String services        = '/services';
 
   // ── Navigation helpers ────────────────────────────────────────────────────
 

@@ -33,6 +33,7 @@ class GoldSession {
   static const _kCompanyName         = 'company_name';
   static const _kUserAccess          = 'user_access'; // JSON-encoded list
   static const _kPasswordChangedDate = 'password_changed_date';
+  static const _kUserRole            = 'user_role';
 
   // ── In-memory cache ────────────────────────────────────────────────────────
   String? _token;
@@ -43,6 +44,7 @@ class GoldSession {
   String? _companyType;
   String? _companyName;
   String? _passwordChangedDate;
+  String? _userRole;
   List<UserAccessEntry> _userAccess = [];
 
   // ── Getters ────────────────────────────────────────────────────────────────
@@ -55,6 +57,7 @@ class GoldSession {
   String? get companyType         => _companyType;
   String? get companyName         => _companyName;
   String? get passwordChangedDate => _passwordChangedDate;
+  String? get userRole            => _userRole;
 
   /// Full list of module access entries for the logged-in user.
   List<UserAccessEntry> get userAccess => List.unmodifiable(_userAccess);
@@ -99,6 +102,7 @@ class GoldSession {
     String? companyType,
     String? companyName,
     String? passwordChangedDate,
+    String? userRole,
     List<UserAccessEntry> userAccess = const [],
   }) async {
     // Memory
@@ -110,6 +114,7 @@ class GoldSession {
     _companyType         = companyType;
     _companyName         = companyName;
     _passwordChangedDate = passwordChangedDate;
+    _userRole            = userRole;
     _userAccess          = List.from(userAccess);
 
     // Serialise userAccess → JSON string for persistence
@@ -125,6 +130,7 @@ class GoldSession {
     if (companyType         != null) await prefs.setString(_kCompanyType,         companyType);
     if (companyName         != null) await prefs.setString(_kCompanyName,         companyName);
     if (passwordChangedDate != null) await prefs.setString(_kPasswordChangedDate, passwordChangedDate);
+    if (userRole            != null) await prefs.setString(_kUserRole,            userRole);
     await prefs.setString(_kUserAccess, accessJson);
 
     if (kDebugMode) {
@@ -137,6 +143,7 @@ class GoldSession {
       debugPrint('║   userPhone   : $userPhone');
       debugPrint('║   companyType : $companyType');
       debugPrint('║   companyName : $companyName');
+      debugPrint('║   userRole    : $userRole');
       debugPrint('║   userAccess  : ${userAccess.map((e) => "${e.module}[R:${e.read},W:${e.write}]").join(", ")}');
       debugPrint('║   token       : ${token.substring(0, 20)}...');
       debugPrint('╚══════════════════════════════════════════════════════════');
@@ -157,6 +164,7 @@ class GoldSession {
     _companyType         = prefs.getString(_kCompanyType);
     _companyName         = prefs.getString(_kCompanyName);
     _passwordChangedDate = prefs.getString(_kPasswordChangedDate);
+    _userRole            = prefs.getString(_kUserRole);
 
     // Restore userAccess from JSON
     final accessJson = prefs.getString(_kUserAccess);
@@ -190,6 +198,7 @@ class GoldSession {
     _companyType         = null;
     _companyName         = null;
     _passwordChangedDate = null;
+    _userRole            = null;
     _userAccess          = [];
 
     final prefs = await SharedPreferences.getInstance();
@@ -201,6 +210,7 @@ class GoldSession {
     await prefs.remove(_kCompanyType);
     await prefs.remove(_kCompanyName);
     await prefs.remove(_kPasswordChangedDate);
+    await prefs.remove(_kUserRole);
     await prefs.remove(_kUserAccess);
 
     debugPrint('[GoldSession] 🗑️  Session cleared.');

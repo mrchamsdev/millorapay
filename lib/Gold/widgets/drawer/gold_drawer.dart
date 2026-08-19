@@ -57,13 +57,14 @@ class GoldDrawer extends StatelessWidget {
                  
                   
                   if (GoldSession.instance.canRead('Users') ||
-                      GoldSession.instance.canRead('Category') ||
-                      GoldSession.instance.canRead('Customer')) ...[
+                      GoldSession.instance.canRead('Category') /* ||
+                      GoldSession.instance.canRead('Customer') */) ...[
                     _SectionHeader(title: 'Profile'),
                     if (GoldSession.instance.canRead('Users'))
                       _DrawerItem(icon: Icons.person_outline, title: 'User access', onTap: () => Navigator.pushNamed(context, AppRoutes.users)),
                     if (GoldSession.instance.canRead('Category'))
                       _DrawerItem(icon: Icons.category_outlined, title: 'Category', onTap: () => Navigator.pushNamed(context, AppRoutes.categoryManagement)),
+                    /*
                     if (GoldSession.instance.canRead('Customer'))
                       _DrawerItem(
                         icon: Icons.groups_outlined,
@@ -73,6 +74,7 @@ class GoldDrawer extends StatelessWidget {
                           Navigator.pushNamed(context, AppRoutes.customers);
                         },
                       ),
+                    */
                     _DrawerItem(
                       iconWidget: SvgPicture.asset(
                         'assets/images/Branch2.svg', // Replace with your SVG
@@ -83,6 +85,30 @@ class GoldDrawer extends StatelessWidget {
                       onTap: () {
                         Navigator.pop(context); // Close Drawer
                         Navigator.pushNamed(context, AppRoutes.branches);
+                      },
+                    ),
+                    _DrawerItem(
+                      iconWidget: SvgPicture.asset(
+                        'assets/images/Units.svg',
+                        width: 16,
+                        height: 16,
+                      ),
+                      title: 'Units',
+                      onTap: () {
+                        Navigator.pop(context); // Close Drawer
+                        Navigator.pushNamed(context, AppRoutes.units);
+                      },
+                    ),
+                    _DrawerItem(
+                      iconWidget: SvgPicture.asset(
+                        'assets/images/Services.svg',
+                        width: 16,
+                        height: 16,
+                      ),
+                      title: 'Services',
+                      onTap: () {
+                        Navigator.pop(context); // Close Drawer
+                        Navigator.pushNamed(context, AppRoutes.services);
                       },
                     ),
                   ],

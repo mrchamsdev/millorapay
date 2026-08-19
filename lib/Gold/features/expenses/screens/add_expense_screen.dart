@@ -12,11 +12,15 @@ import '../../../core/constants/app_routes.dart';
 import '../../branch/models/branch_model.dart';
 import '../../branch/repository/branch_repository.dart';
 import '../../categories/models/category_model.dart';
+import '../../categories/repository/category_repository.dart';
+import '../../units/models/unit_model.dart';
+import '../../services/models/service_model.dart';
 import '../../users/models/user_model.dart';
 import '../../users/repository/user_repository.dart';
 import '../models/expense_model.dart';
 import '../repository/expense_repository.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../notifications/providers/notification_provider.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final Expense? expense;
@@ -32,6 +36,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final ExpenseRepository _repository = ExpenseRepository();
   final BranchRepository _branchRepository = BranchRepository();
   final UserRepository _userRepository = UserRepository();
+  final CategoryRepository _categoryRepository = CategoryRepository();
   final ImagePicker _picker = ImagePicker();
 
   Branch? _selectedBranch;
@@ -49,6 +54,50 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   List<String> _currentImageUrls = [];
   bool _isLoading = false;
 
+  List<String> _units = [];
+  String _selectedUnit = '';
+
+  ServiceModel? _selectedService;
+  List<ServiceModel> _services = [];
+
+  Future<void> _fetchCategoryDetails(ExpenseCategory category) async {
+    List<Unit>? unitsList = category.units;
+    List<ServiceModel>? servicesList = category.services;
+
+    if (((unitsList == null || unitsList.isEmpty) || (servicesList == null || servicesList.isEmpty)) && category.id != null) {
+      try {
+        final fullCat = await _categoryRepository.getCategoryById(category.id!);
+        if (fullCat != null) {
+          unitsList = fullCat.units ?? unitsList;
+          servicesList = fullCat.services ?? servicesList;
+          _selectedCategory = fullCat;
+        }
+      } catch (_) {}
+    }
+
+    final catUnits = unitsList?.map((u) => u.name).where((n) => n.isNotEmpty).toList() ?? [];
+    final catServices = servicesList ?? [];
+
+    if (mounted) {
+      setState(() {
+        _units = catUnits;
+        if (catUnits.isNotEmpty) {
+          if (!_units.contains(_selectedUnit)) {
+            _selectedUnit = catUnits.first;
+          }
+        } else {
+          _selectedUnit = '';
+        }
+
+        _services = catServices;
+        if (_selectedService != null && !catServices.any((s) => s.name == _selectedService?.name)) {
+          _selectedService = null;
+          _serviceController.clear();
+        }
+      });
+    }
+  }
+
   // ─── Controllers ─────────────────────────────────────────────────────────
   final TextEditingController _branchController = TextEditingController();
   final TextEditingController _amountController = TextEditingController(
@@ -57,8 +106,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _paidByController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
+  final TextEditingController _serviceController = TextEditingController();
   final TextEditingController _commentController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
+  final DateMaskController _dateController = DateMaskController();
 
   bool get _isEditMode => widget.expense != null;
 
@@ -66,6 +117,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
+    _dateController.text = _formatDateForMask(_selectedDate);
     _fetchBranches();
     _fetchUsers();
     if (_isEditMode) {
@@ -90,11 +142,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   /// Opens the Paid by selection bottom sheet listing users with name and role.
   Future<void> _openPaidByPicker() async {
+    if (_selectedBranch == null) {
+      GoldDialogs.showSnackBar(
+        context,
+        'Please select a branch first',
+        isError: true,
+      );
+      return;
+    }
+
     if (_users.isEmpty && !_isLoadingUsers) {
       await _fetchUsers();
     }
 
     if (!mounted) return;
+
+    final filteredUsers = _users.where((u) => u.branchId?.toString() == _selectedBranch!.id).toList();
 
     showModalBottomSheet(
       context: context,
@@ -133,12 +196,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         child: CircularProgressIndicator(color: AppColors.primaryBlue),
                       ),
                     )
-                  else if (_users.isEmpty)
+                  else if (filteredUsers.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(24),
                       child: Center(
                         child: Text(
-                          'No users found',
+                          'No users found for this branch',
                           style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ),
@@ -147,10 +210,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     Expanded(
                       child: ListView.separated(
                         shrinkWrap: true,
-                        itemCount: _users.length,
+                        itemCount: filteredUsers.length,
                         separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
                         itemBuilder: (context, index) {
-                          final u = _users[index];
+                          final u = filteredUsers[index];
                           final isSelected = _selectedPaidByUser?.id == u.id || _paidByController.text == u.name;
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -193,23 +256,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       },
     );
   }
-
-  void _openQuantityPicker() {
-    if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a category first', style: TextStyle(color: Colors.white))),
-      );
-      return;
-    }
-
-    final quantities = _selectedCategory!.quantity;
-    if (quantities == null || quantities.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No quantities available for this category', style: TextStyle(color: Colors.white))),
-      );
-      return;
-    }
-
+  void _openUnitPicker() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -231,7 +278,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Text(
-                      'Select Quantity',
+                      'Select Unit',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -240,37 +287,51 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                   ),
                   const Divider(height: 1),
-                  Expanded(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: quantities.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
-                      itemBuilder: (context, index) {
-                        final q = quantities[index].toString();
-                        final isSelected = _quantityController.text == q;
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                          title: Text(
-                            q,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: isSelected ? AppColors.primaryBlue : AppColors.textPrimary,
+                  _units.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                          child: Center(
+                            child: Text(
+                              'No units are present for this category.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF727271),
+                              ),
                             ),
                           ),
-                          trailing: isSelected
-                              ? const Icon(Icons.check_circle, color: AppColors.primaryBlue, size: 20)
-                              : null,
-                          onTap: () {
-                            setState(() {
-                              _quantityController.text = q;
-                            });
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    ),
-                  ),
+                        )
+                      : Expanded(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: _units.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
+                            itemBuilder: (context, index) {
+                              final u = _units[index];
+                              final isSelected = _selectedUnit == u;
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                                title: Text(
+                                  u,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? AppColors.primaryBlue : AppColors.textPrimary,
+                                  ),
+                                ),
+                                trailing: isSelected
+                                    ? const Icon(Icons.check_circle, color: AppColors.primaryBlue, size: 20)
+                                    : null,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedUnit = u;
+                                  });
+                                  Navigator.pop(context);
+                                },
+                              );
+                            },
+                          ),
+                        ),
                 ],
               ),
             );
@@ -408,8 +469,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _categoryController.dispose();
     _paidByController.dispose();
     _quantityController.dispose();
+    _serviceController.dispose();
     _commentController.dispose();
     _noteController.dispose();
+    _dateController.dispose();
     super.dispose();
   }
 
@@ -423,8 +486,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _currentImageUrls = exp.files ?? (exp.file != null ? [exp.file!] : []);
     try {
       _selectedDate = DateTime.parse(exp.expenseDate);
+      _dateController.text = _formatDateForMask(_selectedDate);
     } catch (_) {
       _selectedDate = DateTime.now();
+      _dateController.text = _formatDateForMask(_selectedDate);
     }
 
     // Pre-fill Branch
@@ -446,7 +511,25 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     // Pre-fill Quantity
     if (exp.quantities != null && exp.quantities!.isNotEmpty) {
-      _quantityController.text = exp.quantities!.first;
+      final qStr = exp.quantities!.first;
+      final parts = qStr.split(' ');
+      if (parts.length > 1) {
+        _quantityController.text = parts[0];
+        final unitPart = parts.sublist(1).join(' ');
+        _selectedUnit = unitPart;
+      } else {
+        _quantityController.text = qStr;
+      }
+    }
+
+    // Pre-fill Service
+    if (exp.service != null && exp.service!.isNotEmpty) {
+      _serviceController.text = exp.service!;
+      _selectedService = ServiceModel(name: exp.service!);
+    }
+
+    if (_selectedCategory != null) {
+      _fetchCategoryDetails(_selectedCategory!);
     }
   }
 
@@ -460,7 +543,91 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         _selectedCategory = result;
         _quantityController.clear();
       });
+      await _fetchCategoryDetails(result);
     }
+  }
+
+  /// Opens the service picker bottom sheet listing services for the category.
+  void _openServicePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.5,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Text(
+                  'Select Service',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              _services.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No services are present for this category.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF727271),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Expanded(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _services.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
+                        itemBuilder: (context, index) {
+                          final svc = _services[index];
+                          final isSelected = _selectedService != null && _selectedService!.name == svc.name;
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                            title: Text(
+                              svc.name,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected ? AppColors.primaryBlue : AppColors.textPrimary,
+                              ),
+                            ),
+                            trailing: isSelected
+                                ? const Icon(Icons.check_circle, color: AppColors.primaryBlue, size: 20)
+                                : null,
+                            onTap: () {
+                              setState(() {
+                                _selectedService = svc;
+                                _serviceController.text = svc.name;
+                              });
+                              Navigator.pop(context);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   /// Opens the currency picker and updates selected currency on return.
@@ -490,7 +657,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ),
     );
     if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _dateController.text = _formatDateForMask(picked);
+      });
     }
   }
 
@@ -525,6 +695,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   final img = await _picker.pickImage(
                     source: ImageSource.gallery,
                     imageQuality: 80,
+                    maxWidth: 1280,
+                    maxHeight: 1280,
                   );
                   if (context.mounted) AppRoutes.pop(context, img);
                 },
@@ -539,6 +711,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   final img = await _picker.pickImage(
                     source: ImageSource.camera,
                     imageQuality: 80,
+                    maxWidth: 1280,
+                    maxHeight: 1280,
                   );
                   if (context.mounted) AppRoutes.pop(context, img);
                 },
@@ -603,8 +777,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     setState(() => _isLoading = true);
 
     try {
+      DateTime? parsedDate;
+      try {
+        final val = _dateController.text;
+        if (val.length == 10 && !val.contains('d') && !val.contains('m') && !val.contains('y')) {
+          final parts = val.split('/');
+          if (parts.length == 3) {
+            final d = int.parse(parts[0]);
+            final m = int.parse(parts[1]);
+            final y = int.parse(parts[2]);
+            parsedDate = DateTime(y, m, d);
+          }
+        }
+      } catch (_) {}
+      
+      final dateToUse = parsedDate ?? _selectedDate;
       final dateStr =
-          '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+          '${dateToUse.year}-${dateToUse.month.toString().padLeft(2, '0')}-${dateToUse.day.toString().padLeft(2, '0')}';
 
       Expense? savedExpense;
 
@@ -632,7 +821,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           branchId: _selectedBranch != null ? int.tryParse(_selectedBranch!.id ?? '') : null,
           quantity: _quantityController.text.trim().isEmpty
               ? null
-              : _quantityController.text.trim(),
+              : '${_quantityController.text.trim()} $_selectedUnit',
+          service: _selectedService?.name,
           file: _imagePaths.isNotEmpty
               ? (widget.expense?.files ?? (_currentImageUrls.isNotEmpty ? _currentImageUrls : null))
               : (_currentImageUrls.isNotEmpty ? _currentImageUrls : null),
@@ -655,19 +845,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           branchId: _selectedBranch != null ? int.tryParse(_selectedBranch!.id ?? '') : null,
           quantity: _quantityController.text.trim().isEmpty
               ? null
-              : _quantityController.text.trim(),
+              : '${_quantityController.text.trim()} $_selectedUnit',
+          service: _selectedService?.name,
         );
       }
 
       if (savedExpense != null) {
         if (_imagePaths.isNotEmpty) {
-          for (final imgPath in _imagePaths) {
-            await _repository.uploadExpenseFile(
-              savedExpense.id!,
-              imgPath,
-            );
-          }
+          await _repository.uploadExpenseFiles(
+            savedExpense.id!,
+            _imagePaths,
+          );
         }
+        
+        // Refresh notification count only when an expense is edited successfully
+        if (_isEditMode) {
+          NotificationProvider.fetchUnreadCount();
+        }
+
         if (mounted) {
           GoldDialogs.showSnackBar(
             context,
@@ -692,7 +887,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       if (mounted) {
         GoldDialogs.showSnackBar(
           context,
-          'Error: ${e.toString()}',
+          _isEditMode ? 'Failed to update expense' : 'Failed to create expense',
           isError: true,
         );
       }
@@ -702,6 +897,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
+
+  String _formatDateForMask(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
 
   String _getFormattedDate(DateTime date) {
     const months = [
@@ -767,15 +966,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               // ── 1. Enter Branch Row (Top) ──────────────────────────
               _FormRow(
                 iconWidget: SvgPicture.asset(
-                  'assets/images/Branches.svg', // Replace with your Branch SVG asset path
-                  width: 44,
-                  height: 44,
+                  'assets/images/Branch1.svg', // Replace with your Branch SVG asset path
+                  width: 22,
+                  height: 22,
                   errorBuilder: (context, error, stackTrace) => const Icon(
                     Icons.domain_outlined,
                     color: AppColors.textPrimary,
                     size: 20,
                   ),
                 ),
+                showBorder: true,
                 onIconTap: _openBranchPicker,
                 child: GestureDetector(
                   onTap: _openBranchPicker,
@@ -789,7 +989,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         color: AppColors.textPrimary,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Enter Branch',
+                        hintText: 'Select Branch',
                         hintStyle: const TextStyle(
                           color: Color(0xFFB0B1B4),
                           fontSize: 14,
@@ -804,7 +1004,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           ),
                         ),
                         filled: false,
+                        isDense: true,
                         contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                         suffixIcon: const Icon(
                           Icons.keyboard_arrow_down_rounded,
                           color: Colors.grey,
@@ -819,33 +1021,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
               // ── 2. Category Row ──────────────────────────────────────
               _FormRow(
-                iconWidget: _selectedCategory?.icon != null && _selectedCategory!.icon!.isNotEmpty
-                    ? _selectedCategory!.icon!.toLowerCase().endsWith('.svg')
-                        ? SvgPicture.network(
-                            _selectedCategory!.icon!.replaceAll(' ', '%20'),
-                            width: 20,
-                            height: 20,
-                            placeholderBuilder: (context) => const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : Image.network(
-                            _selectedCategory!.icon!.replaceAll(' ', '%20'),
-                            width: 20,
-                            height: 20,
-                            errorBuilder: (context, error, stackTrace) => SvgPicture.asset(
-                              'assets/imagess/Category.svg', // Replace with your Category SVG
-                              width: 44,
-                              height: 44,
-                            ),
-                          )
-                    : SvgPicture.asset(
-                        'assets/images/Category.svg', // Replace with your Category SVG
-                        width: 44,
-                        height: 44,
-                      ),
+                iconWidget: SvgPicture.asset(
+                  'assets/images/Category1.svg', // Replace with your Category SVG
+                  width: 20,
+                  height: 20,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.category_outlined,
+                    color: AppColors.textPrimary,
+                    size: 20,
+                  ),
+                ),
+                showBorder: true,
                 onIconTap: _openCategoryPicker,
                 child: TextField(
                   controller: _categoryController,
@@ -860,7 +1046,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     }
                   },
                   decoration: InputDecoration(
-                    hintText: 'Enter a Category',
+                    hintText: 'Select Category',
                     hintStyle: const TextStyle(
                       color: Color(0xFFB0B1B4),
                       fontSize: 14,
@@ -875,9 +1061,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ),
                     ),
                     filled: false,
+                    isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
                       vertical: 8,
                     ),
+                    suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                     suffixIcon: _selectedCategory != null
                         ? const Icon(
                             Icons.check_circle,
@@ -892,11 +1080,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
               // ── 3. Amount Row ────────────────────────────────────────
               _FormRow(
-                iconWidget: SvgPicture.asset(
-                  'assets/images/Rupee.svg', // Replace with your Amount SVG
-                  width: 44,
-                  height: 44,
+                iconWidget: Text(
+                  _getCurrencySymbol(_selectedCurrency),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
+                showBorder: true,
                 onIconTap: _openCurrencyPicker,
                 child: TextFormField(
                   controller: _amountController,
@@ -925,21 +1117,31 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 showBorder: true,
                 onIconTap: _openDatePicker,
-                child: GestureDetector(
-                  onTap: _openDatePicker,
-                  child: AbsorbPointer(
-                    child: TextFormField(
-                      key: ValueKey(_selectedDate),
-                      readOnly: true,
-                      initialValue: _getFormattedDate(_selectedDate),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                      decoration: _inputDecoration('Select Date'),
-                    ),
+                child: TextField(
+                  controller: _dateController,
+                  keyboardType: TextInputType.datetime,
+                  inputFormatters: [
+                    DateMaskFormatter(),
+                  ],
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
+                  decoration: _inputDecoration('dd/mm/yyyy'),
+                  onChanged: (val) {
+                    if (val.length == 10 && !val.contains('d') && !val.contains('m') && !val.contains('y')) {
+                      try {
+                        final parts = val.split('/');
+                        if (parts.length == 3) {
+                          final d = int.parse(parts[0]);
+                          final m = int.parse(parts[1]);
+                          final y = int.parse(parts[2]);
+                          _selectedDate = DateTime(y, m, d);
+                        }
+                      } catch (_) {}
+                    }
+                  },
                 ),
               ),
               const SizedBox(height: 20),
@@ -947,15 +1149,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               // ── 5. Paid by Row (After Date) ──────────────────────────
               _FormRow(
                 iconWidget: SvgPicture.asset(
-                  'assets/images/Paidby.svg', // Replace with your Paid by SVG asset path
-                  width: 44,
-                  height: 44,
+                  'assets/images/PaidBy1.svg', // Replace with your Paid by SVG asset path
+                  width: 20,
+                  height: 20,
                   errorBuilder: (context, error, stackTrace) => const Icon(
                     Icons.person_outline_rounded,
                     color: AppColors.textPrimary,
                     size: 20,
                   ),
                 ),
+                showBorder: true,
                 onIconTap: _openPaidByPicker,
                 child: GestureDetector(
                   onTap: _openPaidByPicker,
@@ -984,7 +1187,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           ),
                         ),
                         filled: false,
+                        isDense: true,
                         contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                         suffixIcon: const Icon(
                           Icons.keyboard_arrow_down_rounded,
                           color: Colors.grey,
@@ -997,58 +1202,134 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
               const SizedBox(height: 20),
 
-              // ── 6. Quantity Row (After Paid by) ──────────────────────
-              _FormRow(
-                iconWidget: SvgPicture.asset(
-                  'assets/images/Quantity.svg', // Replace with your Quantity SVG asset path
-                  width: 44,
-                  height: 44,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.grid_view_outlined,
-                    color: AppColors.textPrimary,
-                    size: 20,
+              if (_selectedCategory?.quantity == true) ...[
+                // ── 6. Quantity Row (After Paid by) ──────────────────────
+                _FormRow(
+                  iconWidget: SvgPicture.asset(
+                    'assets/images/Quantity1.svg', // Replace with your Quantity SVG asset path
+                    width: 20,
+                    height: 20,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.grid_view_outlined,
+                      color: AppColors.textPrimary,
+                      size: 20,
+                    ),
+                  ),
+                  showBorder: true,
+                  onIconTap: () {},
+                  child: TextField(
+                    controller: _quantityController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Quantity',
+                      hintStyle: const TextStyle(
+                        color: Color(0xFFB0B1B4),
+                        fontSize: 14,
+                      ),
+                      enabledBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: AppColors.primaryBlue,
+                          width: 1.5,
+                        ),
+                      ),
+                      filled: false,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      suffixIcon: GestureDetector(
+                        onTap: _openUnitPicker,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (_selectedUnit.isNotEmpty)
+                              Text(
+                                _selectedUnit,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: Colors.grey,
+                              size: 22,
+                            ),
+                          ],
+                        ),
+                      ),
+                      suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                    ),
                   ),
                 ),
-                onIconTap: _openQuantityPicker,
-                child: GestureDetector(
-                  onTap: _openQuantityPicker,
-                  child: AbsorbPointer(
-                    child: TextField(
-                      controller: _quantityController,
-                      readOnly: true,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Quantity',
-                        hintStyle: const TextStyle(
-                          color: Color(0xFFB0B1B4),
+                const SizedBox(height: 24),
+              ],
+
+              if (_selectedCategory?.service == true) ...[
+                // ── Service Row ──────────────────────────────────────────
+                _FormRow(
+                  iconWidget: SvgPicture.asset(
+                    'assets/images/Services2.svg',
+                    width: 20,
+                    height: 20,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.design_services_outlined,
+                      color: AppColors.textPrimary,
+                      size: 20,
+                    ),
+                  ),
+                  showBorder: true,
+                  onIconTap: _openServicePicker,
+                  child: GestureDetector(
+                    onTap: _openServicePicker,
+                    child: AbsorbPointer(
+                      child: TextField(
+                        controller: _serviceController,
+                        readOnly: true,
+                        style: const TextStyle(
                           fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
                         ),
-                        enabledBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        focusedBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: AppColors.primaryBlue,
-                            width: 1.5,
+                        decoration: InputDecoration(
+                          hintText: 'Select Service',
+                          hintStyle: const TextStyle(
+                            color: Color(0xFFB0B1B4),
+                            fontSize: 14,
                           ),
-                        ),
-                        filled: false,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                        suffixIcon: const Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          color: Colors.grey,
-                          size: 22,
+                          enabledBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                          ),
+                          focusedBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: AppColors.primaryBlue,
+                              width: 1.5,
+                            ),
+                          ),
+                          filled: false,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          suffixIcon: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Colors.grey,
+                            size: 22,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
 
               // ── 7. Note Section ──────────────────────────────────────
               const Text(
@@ -1305,3 +1586,67 @@ class DigitLimitFormatter extends TextInputFormatter {
     return newValue;
   }
 }
+
+class DateMaskFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) return newValue;
+    
+    String digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(text: '', selection: TextSelection.collapsed(offset: 0));
+    }
+    
+    if (digits.length > 8) digits = digits.substring(0, 8);
+    
+    String formatted = 'dd/mm/yyyy';
+    for (int i = 0; i < digits.length; i++) {
+      if (i < 2) formatted = formatted.replaceFirst('d', digits[i]);
+      else if (i < 4) formatted = formatted.replaceFirst('m', digits[i]);
+      else formatted = formatted.replaceFirst('y', digits[i]);
+    }
+    
+    bool isDeleting = oldValue.text.length > newValue.text.length;
+    int cursor;
+    if (digits.length == 0) cursor = 0;
+    else if (digits.length == 1) cursor = 1;
+    else if (digits.length == 2) cursor = isDeleting ? 2 : 3;
+    else if (digits.length == 3) cursor = 4;
+    else if (digits.length == 4) cursor = isDeleting ? 5 : 6;
+    else cursor = digits.length + 2;
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: cursor),
+    );
+  }
+}
+
+class DateMaskController extends TextEditingController {
+  DateMaskController({String? text}) : super(text: text);
+
+  @override
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    List<TextSpan> children = [];
+    for (int i = 0; i < text.length; i++) {
+      String char = text[i];
+      if (char == 'd' || char == 'm' || char == 'y') {
+        children.add(TextSpan(
+          text: char,
+          style: style?.copyWith(color: const Color(0xFFB0B1B4)),
+        ));
+      } else {
+        children.add(TextSpan(
+          text: char,
+          style: style,
+        ));
+      }
+    }
+    return TextSpan(style: style, children: children);
+  }
+}
+

@@ -4,6 +4,8 @@ import '../../../widgets/gold_back_button.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../models/category_model.dart';
 import '../repository/category_repository.dart';
+import '../../units/models/unit_model.dart';
+import '../../services/models/service_model.dart';
 
 class ViewCategoryScreen extends StatefulWidget {
   final int categoryId;
@@ -178,8 +180,8 @@ class _ViewCategoryScreenState extends State<ViewCategoryScreen> {
     );
   }
 
-  Widget _buildQuantitySection(List<dynamic>? quantityList) {
-    if (quantityList == null || quantityList.isEmpty) {
+  Widget _buildQuantitySection(dynamic quantity) {
+    if (quantity != true && quantity != 1 && quantity != 'true') {
       return const SizedBox.shrink();
     }
     
@@ -187,39 +189,176 @@ class _ViewCategoryScreenState extends State<ViewCategoryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 140,
+              child: Text(
+                'Quantity',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: Transform.scale(
+                      scale: 0.7,
+                      child: Checkbox(
+                        value: true,
+                        fillColor: WidgetStateProperty.all(Colors.white),
+                        checkColor: const Color(0xFF727271),
+                        side: const BorderSide(color: Color(0xFF727271), width: 1.5),
+                        onChanged: (val) {},
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUnitsSection(List<Unit>? units) {
+    if (units == null || units.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
         const Text(
-          'Quantity',
+          'Units',
           style: TextStyle(
             fontWeight: FontWeight.w500,
-            fontSize: 14,
+            fontSize: 13,
             color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: 12),
-        ...quantityList.map((q) => Padding(
-              padding: const EdgeInsets.only(bottom: 12.0, left: 16.0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF727271),
-                      shape: BoxShape.circle,
-                    ),
+        ...units.map((unit) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '• ',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF727271),
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    q.toString(),
+                ),
+                Expanded(
+                  child: Text(
+                    unit.name,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: Color(0xFF727271),
                     ),
                   ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildServiceSection(dynamic service, List<ServiceModel>? services) {
+    if (service != true && service != 1 && service != 'true') {
+      return const SizedBox.shrink();
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 140,
+              child: Text(
+                'Services',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: Transform.scale(
+                      scale: 0.7,
+                      child: Checkbox(
+                        value: true,
+                        fillColor: WidgetStateProperty.all(Colors.white),
+                        checkColor: const Color(0xFF727271),
+                        side: const BorderSide(color: Color(0xFF727271), width: 1.5),
+                        onChanged: (val) {},
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (services != null && services.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ...services.map((svc) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '• ',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF727271),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      svc.name,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF727271),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            )),
+            );
+          }),
+        ],
       ],
     );
   }
@@ -336,6 +475,8 @@ class _ViewCategoryScreenState extends State<ViewCategoryScreen> {
                                   : null,
                             ),
                             _buildQuantitySection(_category!.quantity),
+                            _buildUnitsSection(_category!.units),
+                            _buildServiceSection(_category!.service, _category!.services),
                           ],
                         ),
                       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:country_picker/country_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/gold_session.dart';
 import '../../../widgets/gold_dialogs.dart';
@@ -27,6 +28,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   User? _user;
   bool _isLoading = true;
   bool _isActioning = false;
+  bool _hasChanges = false;
 
   @override
   void initState() {
@@ -65,6 +67,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
         activate: !isActive,
       );
       if (success) {
+        _hasChanges = true;
         if (mounted) {
           GoldDialogs.showSnackBar(context, 'User ${action}d successfully.');
           _fetchUser();
@@ -83,7 +86,10 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       context: context,
       builder: (context) => AddUserModal(user: _user),
     );
-    if (result == true) _fetchUser();
+    if (result == true) {
+      _hasChanges = true;
+      _fetchUser();
+    }
   }
 
   @override
@@ -95,21 +101,26 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: GoldBackButton(
-          onPressed: () => Navigator.pop(context),
-        ),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, _hasChanges);
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          leading: GoldBackButton(
+            onPressed: () => Navigator.pop(context, _hasChanges),
+          ),
         title: Text(
           widget.userName ?? 'User Details',
           style: const TextStyle(
             color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            fontSize: 16,
           ),
         ),
       ),
@@ -118,6 +129,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           : _user == null
               ? const Center(child: Text('User not found.', style: TextStyle(color: AppColors.textSecondary)))
               : _buildBody(),
+      ),
     );
   }
 
@@ -142,7 +154,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
               children: [
                 _DetailRow(label: 'Name', value: [user.name, user.lastName].where((e) => e != null && e.isNotEmpty).join(' ')),
                 _DetailRow(label: 'Email', value: user.email ?? '—'),
-                _DetailRow(label: 'Phone', value: user.phoneNumber ?? '—'),
+                _DetailRow(label: 'Phone', value: _formatPhoneNumber(user.phoneNumber)),
                 _DetailRow(label: 'Gender', value: user.gender ?? '—'),
                 _DetailRow(label: 'Role', value: user.role ?? '—'),
                 _DetailRow(label: 'Branch', value: user.branch ?? '—', isLast: true),
@@ -319,7 +331,9 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          ...access.map((a) => _AccessRow(access: a)),
+          ...access
+              .where((a) => a.module != 'Gold' && a.module != 'Loan' && a.module != 'Customer')
+              .map((a) => _AccessRow(access: a)),
         ],
       ),
     );
@@ -338,6 +352,23 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       case 'manager': return const Color(0xFF059669);
       default: return const Color(0xFF6B7280);
     }
+  }
+
+  String _formatPhoneNumber(String? phone) {
+    if (phone == null || phone.isEmpty) return '—';
+    if (!phone.startsWith('+')) return phone;
+    
+    for (int i = 4; i >= 1; i--) {
+      if (phone.length > i) {
+        final code = phone.substring(1, i + 1);
+        try {
+          CountryService().getAll().firstWhere((c) => c.phoneCode == code);
+          final rest = phone.substring(i + 1);
+          return '+$code  $rest';
+        } catch (_) {}
+      }
+    }
+    return phone;
   }
 }
 

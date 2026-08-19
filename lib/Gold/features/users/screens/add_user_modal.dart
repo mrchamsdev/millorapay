@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:country_picker/country_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -36,27 +37,24 @@ class _AddUserModalState extends State<AddUserModal> {
   bool _isLoadingBranches = false;
 
   bool _isLoading = false;
+  bool _hasAttemptedSubmit = false;
 
-  Country _selectedCountry = Country(
-    phoneCode: '91',
-    countryCode: 'IN',
-    e164Sc: 0,
-    geographic: true,
-    level: 1,
-    name: 'India',
-    example: 'India',
-    displayName: 'India (IN) [+91]',
-    displayNameNoCountryCode: 'India (IN)',
-    e164Key: '',
-  );
+  void _onFieldChanged() {
+    if (_hasAttemptedSubmit) setState(() {});
+  }
+
+  late Country _selectedCountry;
 
   final List<String> _moduleNames = [
-    'Gold',
+    // 'Gold',
     'Expenses',
-    'Loan',
+    // 'Loan',
     'Category',
     'Users',
-    'Customer'
+    // 'Customer',
+    'Branch',
+    'Units',
+    'Services'
   ];
 
   late List<UserAccess> _accessList;
@@ -64,6 +62,32 @@ class _AddUserModalState extends State<AddUserModal> {
   @override
   void initState() {
     super.initState();
+    
+    try {
+      _selectedCountry = CountryService().getAll().firstWhere((c) => c.countryCode == 'IN');
+    } catch (_) {
+      _selectedCountry = Country(
+        phoneCode: '91',
+        countryCode: 'IN',
+        e164Sc: 0,
+        geographic: true,
+        level: 1,
+        name: 'India',
+        example: '9123456789',
+        displayName: 'India (IN) [+91]',
+        displayNameNoCountryCode: 'India (IN)',
+        e164Key: '',
+      );
+    }
+
+    _nameController.addListener(_onFieldChanged);
+    _lastNameController.addListener(_onFieldChanged);
+    _emailController.addListener(_onFieldChanged);
+    _phoneController.addListener(_onFieldChanged);
+    _roleController.addListener(_onFieldChanged);
+    _branchController.addListener(_onFieldChanged);
+    _genderController.addListener(_onFieldChanged);
+
     _initializeAccessList();
     _fetchBranches();
 
@@ -325,6 +349,14 @@ class _AddUserModalState extends State<AddUserModal> {
 
   @override
   void dispose() {
+    _nameController.removeListener(_onFieldChanged);
+    _lastNameController.removeListener(_onFieldChanged);
+    _emailController.removeListener(_onFieldChanged);
+    _phoneController.removeListener(_onFieldChanged);
+    _roleController.removeListener(_onFieldChanged);
+    _branchController.removeListener(_onFieldChanged);
+    _genderController.removeListener(_onFieldChanged);
+    
     _nameController.dispose();
     _lastNameController.dispose();
     _genderController.dispose();
@@ -335,8 +367,50 @@ class _AddUserModalState extends State<AddUserModal> {
     super.dispose();
   }
 
+  String? _validateAlphabets(String value, String fieldName, bool isSelect) {
+    if (value.trim().isEmpty) return isSelect ? 'Select $fieldName' : 'Enter $fieldName';
+    final alphaRegex = RegExp(r'^[a-zA-Z\s]+$');
+    if (!alphaRegex.hasMatch(value)) return '${fieldName[0].toUpperCase()}${fieldName.substring(1)} should only contain alphabets';
+    return null;
+  }
+
+  String? _validateEmail(String value) {
+    if (value.trim().isEmpty) return 'Enter email';
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value)) return 'Invalid email format';
+    return null;
+  }
+
+  String? _validatePhone(String value) {
+    if (value.trim().isEmpty) return 'Enter phone number';
+    final phoneRegex = RegExp(r'^\d+$');
+    if (!phoneRegex.hasMatch(value)) return 'Phone number should only contain numbers';
+    
+    final expectedLength = _selectedCountry.example.replaceAll(RegExp(r'\D'), '').length;
+    if (expectedLength > 0 && value.trim().length != expectedLength) {
+      return 'Must be $expectedLength digits for ${_selectedCountry.countryCode}';
+    }
+    return null;
+  }
+  
+  String? _validateRequired(String? value, String fieldName, bool isSelect) {
+    if (value == null || value.trim().isEmpty) return isSelect ? 'Select $fieldName' : 'Enter $fieldName';
+    return null;
+  }
+
   Future<void> _handleSubmit() async {
-    if (_nameController.text.trim().isEmpty || _emailController.text.trim().isEmpty) return;
+    setState(() => _hasAttemptedSubmit = true);
+
+    if (_validateAlphabets(_nameController.text, 'name', false) != null ||
+        _validateAlphabets(_lastNameController.text, 'last name', false) != null ||
+        _validateRequired(_genderController.text, 'gender', true) != null ||
+        _validateEmail(_emailController.text) != null ||
+        _validatePhone(_phoneController.text) != null ||
+        _validateAlphabets(_roleController.text, 'role', false) != null ||
+        _validateRequired(_branchController.text, 'branch', true) != null ||
+        !_accessList.any((a) => a.read || a.write)) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     
@@ -394,10 +468,10 @@ class _AddUserModalState extends State<AddUserModal> {
       }
     } catch (e) {
       if (mounted) {
-        GoldDialogs.showErrorDialog(
-          context: context,
-          title: 'Error',
-          message: e.toString(),
+        GoldDialogs.showSnackBar(
+          context,
+          widget.user != null ? 'Failed to update user' : 'Failed to create user',
+          isError: true,
         );
       }
     } finally {
@@ -444,23 +518,28 @@ class _AddUserModalState extends State<AddUserModal> {
                         label: 'Name',  
                         controller: _nameController,
                         hint: 'Enter name',
+                        errorText: _hasAttemptedSubmit ? _validateAlphabets(_nameController.text, 'name', false) : null,
                       ),
                       GoldDetailInputField(
                         label: 'Last Name',
                         controller: _lastNameController,
                         hint: 'Enter last name',
+                        errorText: _hasAttemptedSubmit ? _validateAlphabets(_lastNameController.text, 'last name', false) : null,
                       ),
                       GoldDetailInputField(
                         label: 'Gender',
                         value: _displayGender,
                         hint: 'Select gender',
                         onTap: _showGenderPicker,
+                        errorText: _hasAttemptedSubmit ? _validateRequired(_genderController.text, 'gender', true) : null,
                       ),
                       GoldDetailInputField(
                         label: 'Email',
                         controller: _emailController,
                         hint: 'Enter email',
                         keyboardType: TextInputType.emailAddress,
+                        readOnly: widget.user != null,
+                        errorText: _hasAttemptedSubmit ? _validateEmail(_emailController.text) : null,
                       ),
                       GoldDetailInputField(
                         label: 'Country Code',
@@ -470,9 +549,40 @@ class _AddUserModalState extends State<AddUserModal> {
                           showCountryPicker(
                             context: context,
                             showPhoneCode: true,
+                            countryListTheme: CountryListThemeData(
+                              inputDecoration: InputDecoration(
+                                icon: GestureDetector(
+                                  onTap: () => Navigator.pop(context),
+                                  child: Container(
+                                    width: 35,
+                                    height: 35,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.transparent,
+                                      border: Border.all(color: Colors.grey),
+                                    ),
+                                    child: const Icon(
+                                      Icons.arrow_back_ios_new,
+                                      color: AppColors.textPrimary,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                                hintText: 'Search',
+                                prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
+                                border: OutlineInputBorder(
+                                  borderSide: BorderSide.none,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFFF1F2F5),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
                             onSelect: (Country country) {
                               setState(() {
                                 _selectedCountry = country;
+                                if (_hasAttemptedSubmit) _onFieldChanged();
                               });
                             },
                           );
@@ -483,11 +593,20 @@ class _AddUserModalState extends State<AddUserModal> {
                         controller: _phoneController,
                         hint: 'Enter phone number',
                         keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(
+                            _selectedCountry.example.replaceAll(RegExp(r'\D'), '').length > 0
+                                ? _selectedCountry.example.replaceAll(RegExp(r'\D'), '').length
+                                : 15,
+                          ),
+                        ],
+                        errorText: _hasAttemptedSubmit ? _validatePhone(_phoneController.text) : null,
                       ),
                       GoldDetailInputField(
                         label: 'Role',
                         controller: _roleController,
                         hint: 'Enter role',
+                        errorText: _hasAttemptedSubmit ? _validateAlphabets(_roleController.text, 'role', false) : null,
                       ),
                       GoldDetailInputField(
                         label: 'Branch',
@@ -496,6 +615,7 @@ class _AddUserModalState extends State<AddUserModal> {
                         onTap: _showBranchPicker,
                         suffixIcon: Icons.keyboard_arrow_down_rounded,
                         showBottomBorder: false,
+                        errorText: _hasAttemptedSubmit ? _validateRequired(_branchController.text, 'branch', true) : null,
                       ),
                     ],
                   ),
@@ -539,6 +659,7 @@ class _AddUserModalState extends State<AddUserModal> {
                                     setState(() => _accessList[index] = UserAccess(
                                       module: item.module, read: newRead, write: newWrite
                                     ));
+                                    if (_hasAttemptedSubmit) _onFieldChanged();
                                   },
                                 ),
                               ),
@@ -558,6 +679,7 @@ class _AddUserModalState extends State<AddUserModal> {
                                     setState(() => _accessList[index] = UserAccess(
                                       module: item.module, read: newRead, write: newWrite
                                     ));
+                                    if (_hasAttemptedSubmit) _onFieldChanged();
                                   },
                                 ),
                               ),
@@ -567,6 +689,14 @@ class _AddUserModalState extends State<AddUserModal> {
                       ),
                     );
                   }),
+                  if (_hasAttemptedSubmit && !_accessList.any((a) => a.read || a.write))
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'At least one module must be selected',
+                        style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                      ),
+                    ),
                   const SizedBox(height: 32),
                 ],
               ),

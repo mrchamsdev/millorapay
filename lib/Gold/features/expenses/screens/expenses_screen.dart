@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_routes.dart';
 import '../../../core/network/gold_session.dart';
 import '../../../core/utils/responsive_extensions.dart';
 import '../../../core/utils/screen_utility.dart';
+import '../../../widgets/gold_dialogs.dart';
 import '../../../widgets/gold_shimmer.dart';
 import '../../../widgets/no_access_widget.dart';
 import '../../gold/screens/gold_screen.dart';
@@ -11,6 +14,9 @@ import '../models/expense_model.dart';
 import '../repository/expense_repository.dart';
 import '../widgets/expense_card.dart';
 import '../widgets/section_header.dart';
+import '../../branch/repository/branch_repository.dart';
+import '../../branch/models/branch_model.dart';
+import 'charts_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -21,8 +27,11 @@ class ExpensesScreen extends StatefulWidget {
 
 class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
   final ExpenseRepository _repository = ExpenseRepository();
+  final BranchRepository _branchRepository = BranchRepository();
   List<ExpenseMonthGroup> _monthGroups = [];
   List<ExpenseMonthGroup> _filteredMonthGroups = [];
+  List<Branch> _branches = [];
+  Branch? _selectedBranch;
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
 
@@ -59,36 +68,43 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
       setState(() => _isLoading = true);
     }
     try {
-      final groups = await _repository.getAllExpenses();
+      final results = await Future.wait([
+        _repository.getAllExpenses(),
+        _branchRepository.getAllBranches(),
+      ]);
       setState(() {
-        _monthGroups = groups;
+        _monthGroups = results[0] as List<ExpenseMonthGroup>;
+        _branches = results[1] as List<Branch>;
         _isLoading = false;
       });
       filterExpenses(_searchController.text);
     } catch (_) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        GoldDialogs.showSnackBar(context, 'Failed to load expenses', isError: true);
+      }
     }
   }
 
   void filterExpenses(String query) {
-    if (query.isEmpty) {
-      setState(() {
-        _filteredMonthGroups = _monthGroups;
-      });
-      return;
-    }
-
     final lowerQuery = query.toLowerCase();
     final List<ExpenseMonthGroup> newGroups = [];
 
     for (var group in _monthGroups) {
       final matchingRecords = group.records.where((rec) {
-        final catName = rec.expenseCategory?.name.toLowerCase() ?? '';
-        final desc = rec.description.toLowerCase();
-        final comment = rec.comment?.toLowerCase() ?? '';
-        return catName.contains(lowerQuery) ||
-            desc.contains(lowerQuery) ||
-            comment.contains(lowerQuery);
+        bool matchesQuery = true;
+        if (query.isNotEmpty) {
+          final catName = rec.expenseCategory?.name.toLowerCase() ?? '';
+          final desc = rec.description.toLowerCase();
+          final comment = rec.comment?.toLowerCase() ?? '';
+          matchesQuery = catName.contains(lowerQuery) ||
+              desc.contains(lowerQuery) ||
+              comment.contains(lowerQuery);
+        }
+
+        final matchesBranch = _selectedBranch == null || rec.branch?.id == _selectedBranch!.id;
+        
+        return matchesQuery && matchesBranch;
       }).toList();
 
       if (matchingRecords.isNotEmpty) {
@@ -124,18 +140,119 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
       flatList.addAll(group.records);
     }
 
+    // Check if user is an admin
+    final role = GoldSession.instance.userRole?.toLowerCase();
+    final isAdmin = role != null && role.contains('admin');
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: AppColors.white,
         body: Column(
           children: [
-            Expanded(
-              child: _isLoading
+            if (!_isLoading)
+              Row(
+                children: [
+                  Container(
+                    width: isAdmin ? 65.w : 100.w,
+                    height: 5.h,
+                    margin: EdgeInsets.only(top: 1.h, bottom: 0),
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  itemCount: _branches.length + 1,
+                  itemBuilder: (context, index) {
+                    final isAll = index == 0;
+                    final branch = isAll ? null : _branches[index - 1];
+                    final isSelected = _selectedBranch?.id == branch?.id;
+                    final title = isAll ? 'All' : (branch?.name ?? '');
+
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedBranch = branch;
+                        });
+                        filterExpenses(_searchController.text);
+                      },
+                      child: Padding(
+                        padding: EdgeInsets.only(right: 6.w),
+                        child: IntrinsicWidth(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                title,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 15.sp,
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                  color: isSelected ? const Color(0xFF003366) : AppColors.textSecondary,
+                                ),
+                              ),
+                              if (isSelected)
+                                Container(
+                                  margin: EdgeInsets.only(top: 0.5.h),
+                                  height: 2,
+                                  color: const Color(0xFF003366),
+                                ),
+                              if (!isSelected)
+                                Container(
+                                  margin: EdgeInsets.only(top: 0.5.h),
+                                  height: 2,
+                                  color: Colors.transparent,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              if (isAdmin)
+                Expanded(
+                  child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, AppRoutes.reports);
+                      },
+                      child: SvgPicture.asset(
+                        'assets/images/Excel.svg',
+                        width: 8.w,
+                        height: 8.w,
+                      ),
+                    ),
+                    SizedBox(width: 4.w),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const ChartsScreen()),
+                        );
+                      },
+                      child: SvgPicture.asset(
+                        'assets/images/Pie.svg',
+                        width: 8.w,
+                        height: 8.w,
+                      ),
+                    ),
+                    SizedBox(width: 4.w),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Expanded(
+            child: _isLoading
                   ? ListView.builder(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4.w,
-                        vertical: 1.5.h,
+                      padding: EdgeInsets.only(
+                        left: 4.w,
+                        right: 4.w,
+                        bottom: 1.5.h,
                       ),
                       itemCount: 6,
                       itemBuilder: (context, index) {
@@ -244,9 +361,10 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
                           onRefresh: _fetchExpenses,
                           color: AppColors.primaryBlue,
                           child: ListView.builder(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 4.w,
-                              vertical: 1.5.h,
+                            padding: EdgeInsets.only(
+                              left: 4.w,
+                              right: 4.w,
+                              bottom: 1.5.h,
                             ),
                             itemCount: flatList.length,
                             itemBuilder: (context, index) {

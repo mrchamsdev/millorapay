@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/gold_back_button.dart';
+import '../../../widgets/gold_dialogs.dart';
 import '../models/branch_model.dart';
 import '../repository/branch_repository.dart';
 
@@ -76,8 +77,10 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     if (success && mounted) {
       Navigator.pop(context, true); // Pop back with success indicator
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to add branch. Please try again.')),
+      GoldDialogs.showSnackBar(
+        context,
+        widget.branchToEdit != null ? 'Failed to update branch' : 'Failed to create branch',
+        isError: true,
       );
     }
   }
@@ -98,6 +101,7 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
             Expanded(
               child: TextFormField(
                 controller: controller,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
                 decoration: InputDecoration(
@@ -113,13 +117,23 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
                   focusedBorder: const UnderlineInputBorder(
                     borderSide: BorderSide(color: AppColors.primaryBlue, width: 1.5),
                   ),
+                  errorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFF1F2F5)),
+                  ),
+                  focusedErrorBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primaryBlue, width: 1.5),
+                  ),
+                  errorStyle: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 12,
+                  ),
                   contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   suffixIcon: suffixIcon,
                   suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                 ),
                 validator: (val) {
                   if (val == null || val.trim().isEmpty) {
-                    return 'Required';
+                    return 'Enter $label';
                   }
                   return null;
                 },
