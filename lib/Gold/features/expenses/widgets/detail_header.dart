@@ -17,6 +17,7 @@ class DetailHeader extends StatelessWidget {
   final String? branchName;
   final String? paidBy;
   final List<String>? quantities;
+  final String? service;
 
   const DetailHeader({
     super.key,
@@ -31,6 +32,7 @@ class DetailHeader extends StatelessWidget {
     this.branchName,
     this.paidBy,
     this.quantities,
+    this.service,
   });
 
   @override
@@ -87,6 +89,8 @@ class DetailHeader extends StatelessWidget {
                 _buildInfoText('Paid by: $paidBy'),
               if (quantities != null && quantities!.isNotEmpty)
                 _buildInfoText('Quantity: ${quantities!.join(', ')}'),
+              if (service != null && service!.isNotEmpty)
+                _buildInfoText('Service: $service'),
             ],
           ),
         ),

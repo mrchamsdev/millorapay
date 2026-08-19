@@ -134,6 +134,7 @@ class LoginResponse {
   final String? companyName;
   final String? accountStatus;
   final String? passwordChangedDate; // ISO-8601 from API
+  final String? role;
   final List<UserAccessEntry> userAccess;
 
   const LoginResponse({
@@ -146,6 +147,7 @@ class LoginResponse {
     this.companyName,
     this.accountStatus,
     this.passwordChangedDate,
+    this.role,
     this.userAccess = const [],
   });
 
@@ -178,6 +180,7 @@ class LoginResponse {
       companyName:         userMap['companyName']?.toString(),
       accountStatus:       userMap['accountStatus']?.toString(),
       passwordChangedDate: userMap['passwordChangedDate']?.toString(),
+      role:                userMap['role']?.toString(),
       userAccess:          accessList,
     );
   }

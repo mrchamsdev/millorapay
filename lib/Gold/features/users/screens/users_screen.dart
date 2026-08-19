@@ -3,10 +3,12 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/network/gold_session.dart';
 import '../../../widgets/no_access_widget.dart';
 import '../../../widgets/gold_back_button.dart';
+import '../../../widgets/gold_dialogs.dart';
 import '../models/user_model.dart';
 import '../repository/user_repository.dart';
 import 'add_user_modal.dart';
 import 'user_details_screen.dart';
+import '../../../widgets/gold_shimmer.dart';
 
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -35,17 +37,20 @@ class _UsersScreenState extends State<UsersScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchUsers() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchUsers({bool showLoader = true}) async {
+    if (showLoader) setState(() => _isLoading = true);
     try {
       final users = await _repository.getAllUsers();
       if (mounted) {
         setState(() {
           _users = users;
-          _filteredUsers = users;
         });
+        _onSearch();
       }
     } catch (_) {
+      if (mounted) {
+        GoldDialogs.showSnackBar(context, 'Failed to load users', isError: true);
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -59,13 +64,36 @@ class _UsersScreenState extends State<UsersScreen> {
         final email = (user.email ?? '').toLowerCase();
         return name.contains(query) || email.contains(query);
       }).toList();
+
+      _filteredUsers.sort((a, b) {
+        final aActive = a.accountStatus == 'Active';
+        final bActive = b.accountStatus == 'Active';
+
+        // 1. Group by status
+        if (aActive && !bActive) return -1;
+        if (!aActive && bActive) return 1;
+
+        // 2. Active users: sort by most recently added (createdDate or id descending)
+        if (aActive && bActive) {
+          final aDate = a.createdDate != null ? DateTime.tryParse(a.createdDate!) : null;
+          final bDate = b.createdDate != null ? DateTime.tryParse(b.createdDate!) : null;
+          if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+          return (b.id ?? 0).compareTo(a.id ?? 0);
+        }
+
+        // 3. Inactive users: sort by most recently deactivated (updatedDate or id descending)
+        final aUpdated = a.updatedDate != null ? DateTime.tryParse(a.updatedDate!) : null;
+        final bUpdated = b.updatedDate != null ? DateTime.tryParse(b.updatedDate!) : null;
+        if (aUpdated != null && bUpdated != null) return bUpdated.compareTo(aUpdated);
+        return (b.id ?? 0).compareTo(a.id ?? 0);
+      });
     });
   }
 
   void _openAddUserModal() async {
-    final result = await showDialog(
-      context: context,
-      builder: (context) => const AddUserModal(),
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddUserModal()),
     );
     if (result == true) _fetchUsers();
   }
@@ -187,7 +215,52 @@ class _UsersScreenState extends State<UsersScreen> {
           // ── List ─────────────────────────────────────────────────────
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
+                ? ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    itemCount: 6,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              GoldShimmer(width: 46, height: 46, borderRadius: 23),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    GoldShimmer(width: 120, height: 14, borderRadius: 4),
+                                    const SizedBox(height: 6),
+                                    GoldShimmer(width: 160, height: 10, borderRadius: 4),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  GoldShimmer(width: 50, height: 14, borderRadius: 4),
+                                  const SizedBox(height: 6),
+                                  GoldShimmer(width: 40, height: 10, borderRadius: 4),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  )
                 : _filteredUsers.isEmpty
                     ? _buildEmpty()
                     : RefreshIndicator(

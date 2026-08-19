@@ -15,6 +15,7 @@ import '../../features/expenses/screens/expense_details_screen.dart';
 import '../../features/expenses/screens/category_picker_screen.dart';
 import '../../features/expenses/screens/add_note_screen.dart';
 import '../../features/expenses/screens/currency_picker_screen.dart';
+import '../../features/expenses/screens/reports_screen.dart';
 import '../../features/expenses/models/expense_model.dart';
 import '../../features/gold/screens/gold_details_screen.dart';
 import '../../features/gold/screens/add_gold_purchase_screen.dart';
@@ -34,6 +35,8 @@ import '../../features/branch/screens/branches_screen.dart';
 import '../../features/branch/screens/add_branch_screen.dart';
 import '../../features/branch/screens/branch_details_screen.dart';
 import '../../features/branch/models/branch_model.dart';
+import '../../features/units/screens/units_screen.dart';
+import '../../features/services/screens/services_screen.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -99,6 +102,9 @@ class AppRouter {
       case AppRoutes.categoryManagement:
         return _slide(const CategoryScreen());
 
+      case AppRoutes.reports:
+        return _slide(const ReportsScreen());
+
       case AppRoutes.addNote:
         final initialData = settings.arguments as Map<String, String>?;
         return _slide(AddNoteScreen(initialData: initialData));
@@ -133,6 +139,12 @@ class AppRouter {
 
       case AppRoutes.branches:
         return _slide(const BranchesScreen());
+        
+      case AppRoutes.units:
+        return _slide(const UnitsScreen());
+        
+      case AppRoutes.services:
+        return _slide(const ServicesScreen());
         
       case AppRoutes.addBranch:
         final branch = settings.arguments as Branch?;

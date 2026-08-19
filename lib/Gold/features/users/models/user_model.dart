@@ -34,6 +34,7 @@ class User {
   final String? gender;
   final String? accountStatus;
   final String? createdDate;
+  final String? updatedDate;
   final int? createdBy;
   final List<String> modules;
   final List<UserAccess> userAccess;
@@ -50,6 +51,7 @@ class User {
     this.gender,
     this.accountStatus,
     this.createdDate,
+    this.updatedDate,
     this.createdBy,
     this.modules = const [],
     this.userAccess = const [],
@@ -69,6 +71,7 @@ class User {
         gender: json['gender'],
         accountStatus: json['accountStatus'],
         createdDate: json['createdDate'] ?? json['createdAt'],
+        updatedDate: json['updatedDate'] ?? json['updatedAt'],
         createdBy: json['createdBy'],
         modules: (json['modules'] as List?)?.map((e) => e.toString()).toList() ?? [],
         userAccess: (json['userAccess'] as List?)

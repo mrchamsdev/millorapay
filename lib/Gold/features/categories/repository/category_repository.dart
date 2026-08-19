@@ -58,11 +58,7 @@ class CategoryRepository {
     try {
       final url = GoldApiConstants.expenseCategory;
       // Step 1: Send text data as standard JSON
-      final payload = {
-        'name': category.name,
-        'type': category.type ?? 'Personal',
-        'quantity': category.quantity ?? [],
-      };
+      final payload = category.toJson();
 
       if (kDebugMode) {
         debugPrint('🌐 CREATE CATEGORY (Step 1 - JSON POST): $url');
@@ -118,25 +114,12 @@ class CategoryRepository {
   Future<bool> updateCategory(int id, ExpenseCategory category, {String? filePath}) async {
     try {
       final url = GoldApiConstants.expenseCategoryById(id.toString());
-      dynamic payload;
-
-      if (filePath != null && filePath.isNotEmpty) {
-        payload = FormData.fromMap({
-          'name': category.name,
-          'type': category.type ?? 'Personal',
-          'quantity': category.quantity ?? [],
-          'icon': await MultipartFile.fromFile(filePath, filename: filePath.split('/').last),
-        });
-      } else {
-        payload = {
-          'name': category.name,
-          'type': category.type ?? 'Personal',
-          'quantity': category.quantity ?? [],
-        };
-      }
+      
+      // Step 1: Send text data as standard JSON
+      final payload = category.toJson();
 
       if (kDebugMode) {
-        debugPrint('🌐 UPDATE CATEGORY: $url');
+        debugPrint('🌐 UPDATE CATEGORY (JSON): $url');
         debugPrint('📦 PUT PAYLOAD: $payload');
       }
 
@@ -146,7 +129,16 @@ class CategoryRepository {
         debugPrint('📦 UPDATE CATEGORY RESPONSE: ${response.data}');
       }
       
-      return response.statusCode == 200;
+      if (response.statusCode == 200) {
+        // Step 2: If a new file is selected, trigger uploadCategoryIcon
+        if (filePath != null && filePath.isNotEmpty) {
+          final iconSuccess = await uploadCategoryIcon(id, filePath);
+          return iconSuccess;
+        }
+        return true;
+      }
+      
+      return false;
     } catch (e) {
       if (kDebugMode) debugPrint('❌ UPDATE CATEGORY ERROR: $e');
       return false;

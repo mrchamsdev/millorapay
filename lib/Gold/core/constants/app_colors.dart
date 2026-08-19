@@ -15,7 +15,7 @@ class AppColors {
   static const Color modalIconBackground = Color(0x1A002E6E);
 
   // Text Colors
-  static const Color textPrimary = Color(0xFF1A1A1A);
+  static const Color textPrimary = Color(0xFF121212);
   static const Color textPrimarymainCard = Color(0xFF727271);
 
   static const Color textSecondary = Color(0xFF757575);

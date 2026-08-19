@@ -77,7 +77,7 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        GoldDialogs.showSnackBar(context, 'Error: ${e.toString()}',
+        GoldDialogs.showSnackBar(context, 'Failed to delete expense',
             isError: true);
       }
     } finally {
@@ -110,6 +110,18 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
     }
   }
 
+  List<String> _extractFiles(String val) {
+    if (val == 'none' || val.trim().isEmpty || val.trim() == '[]') return [];
+    
+    String cleaned = val.trim();
+    if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+      cleaned = cleaned.substring(1, cleaned.length - 1);
+    }
+    
+    if (cleaned.isEmpty) return [];
+    return cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  }
+
   String _formatChangeHistory(ExpenseHistoryItem historyItem) {
     if (historyItem.changes == null || historyItem.changes!.isEmpty) {
       return 'Modified record details';
@@ -126,16 +138,25 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
       } else if (field == 'expenseCategoryId') {
         changeTexts.add("Category changed from '$oldVal' to '$newVal'");
       } else if (field == 'branchId') {
-        changeTexts.add('Branch changed');
+        changeTexts.add("Branch changed from '$oldVal' to '$newVal'");
       } else if (field == 'paidBy') {
-        changeTexts.add('Paid by changed');
+        changeTexts.add("Paid by changed from '$oldVal' to '$newVal'");
       } else if (field == 'quantity') {
         changeTexts.add("Quantity changed from '$oldVal' to '$newVal'");
+      } else if (field == 'service') {
+        changeTexts.add("Service changed from '$oldVal' to '$newVal'");
       } else if (field == 'file') {
-        if (newVal == 'none' || newVal.isEmpty) {
-          changeTexts.add('Receipt image removed');
-        } else {
-          changeTexts.add('Receipt image updated');
+        final oldList = _extractFiles(oldVal);
+        final newList = _extractFiles(newVal);
+        
+        final addedCount = newList.where((e) => !oldList.contains(e)).length;
+        final removedCount = oldList.where((e) => !newList.contains(e)).length;
+
+        if (addedCount > 0) {
+          changeTexts.add('$addedCount receipt image${addedCount > 1 ? 's' : ''} updated');
+        }
+        if (removedCount > 0) {
+          changeTexts.add('$removedCount receipt image${removedCount > 1 ? 's' : ''} removed');
         }
       } else if (field == 'note') {
         if (oldVal == 'none' || oldVal.isEmpty) {
@@ -264,6 +285,7 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
                       branchName: _expense.branch?.name,
                       paidBy: _expense.paidByUser?.name,
                       quantities: _expense.quantities,
+                      service: _expense.service,
                     ),
                     SizedBox(height: 1.5.h),
                     const Divider(color: Color(0xFFF1F2F5)),

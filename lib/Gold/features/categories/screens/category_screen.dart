@@ -9,7 +9,6 @@ import '../models/category_model.dart';
 import '../repository/category_repository.dart';
 import 'add_category_modal.dart';
 import 'view_category_screen.dart';
-import 'edit_category_screen.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class CategoryScreen extends StatefulWidget {
@@ -41,7 +40,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         _filteredCategories = data;
       });
     } catch (e) {
-      if (mounted) GoldDialogs.showSnackBar(context, "Error fetching categories", isError: true);
+      if (mounted) GoldDialogs.showSnackBar(context, "Failed to load categories", isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -58,15 +57,27 @@ class _CategoryScreenState extends State<CategoryScreen> {
   Future<void> _handleDelete(ExpenseCategory category) async {
     if (category.id == null) return;
 
-    final confirm = await GoldDialogs.showPermissionDialog(
+    final confirm = await showDialog<bool>(
       context: context,
-      title: "Delete Category?",
-      message: "Are you sure you want to delete '${category.name}'?",
-      confirmLabel: "Delete",
-      icon: Icons.delete_outline,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Category'),
+          content: Text('Are you sure you want to delete "${category.name}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFF002E6E))),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
     );
 
-    if (!confirm) return;
+    if (confirm != true) return;
 
     setState(() => _isLoading = true);
     try {
@@ -78,7 +89,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         if (mounted) GoldDialogs.showSnackBar(context, "Failed to delete category", isError: true);
       }
     } catch (e) {
-      if (mounted) GoldDialogs.showSnackBar(context, "Error: ${e.toString()}", isError: true);
+      if (mounted) GoldDialogs.showSnackBar(context, "Failed to delete category", isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -101,6 +112,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
         title: 'Category',
         showSearch: false,
         showBackButton: true,
+        centerTitle: true,
         actions: [
           if (canWrite) ...[
             _buildAddButton(),
@@ -201,14 +213,20 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                     IconButton(
                                       icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
                                       onPressed: () async {
-                                        final result = await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => EditCategoryScreen(categoryId: category.id!),
-                                          ),
-                                        );
-                                        if (result == true) {
-                                          _fetchCategories();
+                                        setState(() => _isLoading = true);
+                                        try {
+                                          final fullCategory = await _repository.getCategoryById(category.id!);
+                                          if (!mounted) return;
+                                          if (fullCategory != null) {
+                                            _showAddEditModal(category: fullCategory);
+                                          } else {
+                                            GoldDialogs.showSnackBar(context, "Failed to load category details", isError: true);
+                                          }
+                                        } catch (e) {
+                                          if (!mounted) return;
+                                          GoldDialogs.showSnackBar(context, "Error loading category", isError: true);
+                                        } finally {
+                                          if (mounted) setState(() => _isLoading = false);
                                         }
                                       },
                                     ),
