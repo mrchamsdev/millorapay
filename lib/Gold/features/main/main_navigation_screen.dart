@@ -13,6 +13,7 @@ import '../../widgets/drawer/gold_drawer.dart';
 import '../../widgets/modals/quick_actions_modal.dart';
 import '../../widgets/gold_app_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../core/network/gold_session.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -60,6 +61,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canReadExpenses = GoldSession.instance.canRead('Expenses');
+    final canWriteExpenses = GoldSession.instance.canWrite('Expenses');
+
     return Scaffold(
       drawer: const GoldDrawer(),
       appBar: _buildAppBar(),
@@ -88,8 +92,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildSvgNavItem(0, 'assets/images/Home1.svg', 'assets/images/Home1.svg', 'Home'),
-              _buildFab(),
-              _buildNavItem(1, 'assets/gold/expenses.png', 'assets/gold/active-expenses.png', 'Expenses'),
+              if (canReadExpenses && canWriteExpenses) _buildFab(),
+              if (canReadExpenses) _buildNavItem(1, 'assets/gold/expenses.png', 'assets/gold/active-expenses.png', 'Expenses'),
               // _buildFab(),
               // _buildNavItem(3, 'assets/gold/gold.png', 'assets/gold/avtive-gold.png', 'Gold'),
               // _buildNavItem(4, 'assets/gold/loans.png', 'assets/gold/active-loans.png', 'Loans'),
@@ -175,7 +179,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   Widget _buildNavItem(int index, String assetPath, String activeAssetPath, String label) {
     final isSelected = _selectedIndex == index;
-    final color = isSelected ? AppColors.primaryBlue : const Color(0xFF727271);
+    final textColor = isSelected ? AppColors.primaryBlue : const Color(0xFF121212);
+    final iconColor = isSelected ? AppColors.primaryBlue : null;
     
     return Expanded(
       child: GestureDetector(
@@ -206,8 +211,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         : index == 3
                             ? 28
                             : 24,
-                    // Tint dashboard.png since it has no separate active file
-                    color: index == 0 ? color : null,
+                    // Tint the icon only when active
+                    color: iconColor,
                   ),
                 ),
               ),
@@ -218,7 +223,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               child: Text(
                 label,
                 style: AppTextStyles.navLabel.copyWith(
-                  color: color,
+                  color: textColor,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   fontSize: 9,
                 ),
@@ -232,7 +237,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   Widget _buildSvgNavItem(int index, String assetPath, String activeAssetPath, String label) {
     final isSelected = _selectedIndex == index;
-    final color = isSelected ? AppColors.primaryBlue : const Color(0xFF727271);
+    final textColor = isSelected ? AppColors.primaryBlue : const Color(0xFF121212);
+    final iconColor = isSelected ? AppColors.primaryBlue : null;
     
     return Expanded(
       child: GestureDetector(
@@ -255,7 +261,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     isSelected ? activeAssetPath : assetPath,
                     width: 24,
                     height: 24,
-                    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+                    colorFilter: iconColor != null ? ColorFilter.mode(iconColor, BlendMode.srcIn) : null,
                   ),
                 ),
               ),
@@ -266,7 +272,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               child: Text(
                 label,
                 style: AppTextStyles.navLabel.copyWith(
-                  color: color,
+                  color: textColor,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   fontSize: 9,
                 ),

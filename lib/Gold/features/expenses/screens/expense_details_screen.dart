@@ -216,6 +216,10 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
   Widget build(BuildContext context) {
     ScreenUtility().init(context);
 
+    final role = GoldSession.instance.userRole?.toLowerCase();
+    final isAdmin = role != null && role.contains('admin');
+    final canModify = isAdmin || widget.expense.status != 'others';
+
     final displayNote =
         (_expense.note != null && _expense.note!.isNotEmpty)
             ? _expense.note!
@@ -240,7 +244,7 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
           centerTitle: true,
           showNotification: false,
           actions: [
-            if (GoldSession.instance.canWrite('Expenses')) ...[
+            if (GoldSession.instance.canWrite('Expenses') && canModify) ...[
               IconButton(
                 icon: Image.asset(
                   'assets/images/delete.png',
