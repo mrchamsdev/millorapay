@@ -190,26 +190,7 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
   List<ExpenseHistoryItem> get _filteredHistory {
     if (_expense.history == null || _expense.history!.isEmpty) return [];
     
-    DateTime? expenseCreated;
-    if (_expense.createdAt != null) {
-      expenseCreated = DateTime.tryParse(_expense.createdAt!);
-    }
-
-    return _expense.history!.where((item) {
-      if (item.updatedAt == null || expenseCreated == null) return true;
-      
-      final itemUpdated = DateTime.tryParse(item.updatedAt!);
-      if (itemUpdated == null) return true;
-
-      final diff = itemUpdated.difference(expenseCreated).inSeconds.abs();
-      if (diff <= 45) {
-        final changes = item.changes?.keys.toList() ?? [];
-        if (changes.length == 1 && (changes.contains('file') || changes.contains('files'))) {
-          return false;
-        }
-      }
-      return true;
-    }).toList();
+    return _expense.history!.toList();
   }
 
   @override
