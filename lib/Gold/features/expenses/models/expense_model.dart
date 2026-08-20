@@ -111,6 +111,7 @@ class Expense {
   final List<String>? quantities;
   final List<String>? files;
   final String? service;
+  final String? status;
 
   Expense({
     this.id,
@@ -139,6 +140,7 @@ class Expense {
     this.quantities,
     this.files,
     this.service,
+    this.status,
   });
 
   String get currencySymbol {
@@ -221,6 +223,7 @@ class Expense {
       quantities: parsedQuantities,
       files: parsedFiles,
       service: json['service'],
+      status: json['status'],
     );
   }
 
@@ -237,6 +240,7 @@ class Expense {
       if (note != null) 'note': note,
       if (file != null) 'file': file,
       if (service != null) 'service': service,
+      if (status != null) 'status': status,
     };
   }
 }

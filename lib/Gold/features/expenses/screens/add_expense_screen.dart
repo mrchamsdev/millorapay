@@ -483,7 +483,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _selectedCurrency = exp.amountType;
     _selectedCategory = exp.expenseCategory;
     _categoryController.text = exp.description.isNotEmpty ? exp.description : (exp.expenseCategory?.name ?? '');
-    _currentImageUrls = exp.files ?? (exp.file != null ? [exp.file!] : []);
+    _currentImageUrls = List.from(exp.files ?? (exp.file != null ? [exp.file!] : []));
     try {
       _selectedDate = DateTime.parse(exp.expenseDate);
       _dateController.text = _formatDateForMask(_selectedDate);
