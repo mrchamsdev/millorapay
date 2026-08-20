@@ -446,6 +446,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                               setState(() {
                                 _selectedBranch = b;
                                 _branchController.text = b.name;
+                                _selectedPaidByUser = null;
+                                _paidByController.clear();
                               });
                               Navigator.pop(context);
                             },
