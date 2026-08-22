@@ -1352,16 +1352,20 @@ import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/screen_utility.dart';
+import '../../core/network/gold_session.dart';
+import '../auth/models/auth_models.dart';
 import '../loans/repository/loan_repository.dart';
 import '../gold/repository/gold_repository.dart';
 import '../expenses/repository/expense_repository.dart';
+import '../users/repository/user_repository.dart';
 import 'repository/dashboard_repository.dart';
 import 'models/dashboard_data.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Function(int)? onTabSelected;
+  final VoidCallback? onSessionRefreshed;
 
-  const DashboardScreen({super.key, this.onTabSelected});
+  const DashboardScreen({super.key, this.onTabSelected, this.onSessionRefreshed});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -1575,7 +1579,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
 */
 Future<void> _loadTelemetryData() async {
     try {
-      // Fetch period-scoped portfolio summary AND un-scoped totals
+      // 1. Silently update user access permissions in the background
+      if (GoldSession.instance.userId != null) {
+        try {
+          final user = await UserRepository().getUser(GoldSession.instance.userId!);
+          if (user != null) {
+            // Map UserAccess to UserAccessEntry (structurally identical, different models)
+            final accessEntries = user.userAccess.map((e) => UserAccessEntry(
+              module: e.module,
+              read: e.read,
+              write: e.write,
+            )).toList();
+            await GoldSession.instance.updateUserAccess(accessEntries);
+            if (mounted) {
+              widget.onSessionRefreshed?.call();
+            }
+          }
+        } catch (e) {
+          debugPrint('[Dashboard] Failed to refresh user profile: $e');
+        }
+      }
+
+      // 2. Fetch period-scoped portfolio summary AND un-scoped totals
       // (loans/transactions) in parallel.
       final results = await Future.wait([
         DashboardRepository().getAdminDashboard(period: _selectedPeriod),

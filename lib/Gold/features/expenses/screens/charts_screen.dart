@@ -1507,8 +1507,9 @@ class MemberPickerBottomSheet extends StatelessWidget {
           .map((e) => e.paidByUser!.id.toString())
           .toSet();
 
+      final branchIdInt = int.tryParse(branchIdStr ?? '') ?? 0;
       branchUsers = allUsers.where((u) {
-        final isBranchMember = u.branchId?.toString() == branchIdStr;
+        final isBranchMember = u.branchIds.contains(branchIdInt) || u.branchId == branchIdInt;
         final isPaidByUser = paidByUserIds.contains(u.id.toString());
         return isBranchMember && isPaidByUser;
       }).toList();

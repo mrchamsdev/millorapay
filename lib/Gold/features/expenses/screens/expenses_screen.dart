@@ -153,97 +153,98 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
             if (!_isLoading)
               Row(
                 children: [
-                  Container(
-                    width: isAdmin ? 65.w : 100.w,
-                    height: 5.h,
-                    margin: EdgeInsets.only(top: 1.h, bottom: 0),
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: 4.w),
-                  itemCount: _branches.length + 1,
-                  itemBuilder: (context, index) {
-                    final isAll = index == 0;
-                    final branch = isAll ? null : _branches[index - 1];
-                    final isSelected = _selectedBranch?.id == branch?.id;
-                    final title = isAll ? 'All' : (branch?.name ?? '');
+                    Expanded(
+                      child: Container(
+                        height: 5.h,
+                        margin: EdgeInsets.only(top: 1.h, bottom: 0),
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: EdgeInsets.symmetric(horizontal: 4.w),
+                          itemCount: _branches.length + 1,
+                          itemBuilder: (context, index) {
+                            final isAll = index == 0;
+                            final branch = isAll ? null : _branches[index - 1];
+                            final isSelected = _selectedBranch?.id == branch?.id;
+                            final title = isAll ? 'All' : (branch?.name ?? '');
 
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedBranch = branch;
-                        });
-                        filterExpenses(_searchController.text);
-                      },
-                      child: Padding(
-                        padding: EdgeInsets.only(right: 6.w),
-                        child: IntrinsicWidth(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                title,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 15.sp,
-                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                                  color: isSelected ? const Color(0xFF003366) : AppColors.textSecondary,
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedBranch = branch;
+                                });
+                                filterExpenses(_searchController.text);
+                              },
+                              child: Padding(
+                                padding: EdgeInsets.only(right: 6.w),
+                                child: IntrinsicWidth(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        title,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 15.sp,
+                                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                          color: isSelected ? const Color(0xFF003366) : AppColors.textSecondary,
+                                        ),
+                                      ),
+                                      if (isSelected)
+                                        Container(
+                                          margin: EdgeInsets.only(top: 0.5.h),
+                                          height: 2,
+                                          color: const Color(0xFF003366),
+                                        ),
+                                      if (!isSelected)
+                                        Container(
+                                          margin: EdgeInsets.only(top: 0.5.h),
+                                          height: 2,
+                                          color: Colors.transparent,
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              if (isSelected)
-                                Container(
-                                  margin: EdgeInsets.only(top: 0.5.h),
-                                  height: 2,
-                                  color: const Color(0xFF003366),
-                                ),
-                              if (!isSelected)
-                                Container(
-                                  margin: EdgeInsets.only(top: 0.5.h),
-                                  height: 2,
-                                  color: Colors.transparent,
-                                ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
-              if (isAdmin)
-                Expanded(
-                  child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(context, AppRoutes.reports);
-                      },
-                      child: SvgPicture.asset(
-                        'assets/images/Excel.svg',
-                        width: 8.w,
-                        height: 8.w,
-                      ),
                     ),
                     SizedBox(width: 4.w),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ChartsScreen()),
-                        );
-                      },
-                      child: SvgPicture.asset(
-                        'assets/images/Pie.svg',
-                        width: 8.w,
-                        height: 8.w,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (GoldSession.instance.canWrite('Expenses')) ...[
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pushNamed(context, AppRoutes.reports);
+                            },
+                            child: SvgPicture.asset(
+                              'assets/images/Excel.svg',
+                              width: 8.w,
+                              height: 8.w,
+                            ),
+                          ),
+                          SizedBox(width: 4.w),
+                        ],
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const ChartsScreen()),
+                            );
+                          },
+                          child: SvgPicture.asset(
+                            'assets/images/Pie.svg',
+                            width: 8.w,
+                            height: 8.w,
+                          ),
+                        ),
+                        SizedBox(width: 4.w),
+                      ],
                     ),
-                    SizedBox(width: 4.w),
-                  ],
-                ),
-              ),
             ],
           ),
           Expanded(

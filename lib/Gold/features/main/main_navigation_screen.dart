@@ -34,7 +34,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void initState() {
     super.initState();
     _screens = [
-      DashboardScreen(onTabSelected: _onItemTapped),
+      DashboardScreen(
+        onTabSelected: _onItemTapped,
+        onSessionRefreshed: () {
+          if (mounted) setState(() {});
+        },
+      ),
       ExpensesScreen(key: _expensesKey),
       const SizedBox.shrink(), // Placeholder for FAB
       const Scaffold(body: Center(child: Text("Notifications Screen"))), // Notifications placeholder
