@@ -32,7 +32,7 @@ class _AddUserModalState extends State<AddUserModal> {
   final _roleController = TextEditingController();
   final _branchController = TextEditingController();
   
-  Branch? _selectedBranch;
+  List<Branch> _selectedBranches = [];
   List<Branch> _branches = [];
   bool _isLoadingBranches = false;
 
@@ -89,7 +89,36 @@ class _AddUserModalState extends State<AddUserModal> {
     _genderController.addListener(_onFieldChanged);
 
     _initializeAccessList();
-    _fetchBranches();
+    _fetchBranches().then((_) {
+      if (widget.user != null) {
+        if (widget.user!.branchIds.isNotEmpty || widget.user!.branches.isNotEmpty) {
+           _selectedBranches = _branches.where((b) {
+             final intId = int.tryParse(b.id ?? '');
+             return widget.user!.branchIds.contains(intId) || widget.user!.branches.contains(b.name);
+           }).toList();
+           
+           // If we still didn't find anything but branch text exists
+           if (_selectedBranches.isEmpty && widget.user!.branch != null) {
+              final fallback = _branches.where((b) => b.name == widget.user!.branch).toList();
+              if (fallback.isNotEmpty) {
+                _selectedBranches = fallback;
+              }
+           }
+        } else if (widget.user!.branch != null) {
+            final fallback = _branches.where((b) => b.name == widget.user!.branch).toList();
+            if (fallback.isNotEmpty) {
+              _selectedBranches = fallback;
+            }
+        }
+        
+        setState(() {
+          _branchController.text = _selectedBranches.map((e) => e.name).join(', ');
+          if (_branchController.text.isEmpty && widget.user!.branch != null) {
+            _branchController.text = widget.user!.branch!;
+          }
+        });
+      }
+    });
 
     if (widget.user != null) {
       _nameController.text = widget.user!.name;
@@ -120,7 +149,7 @@ class _AddUserModalState extends State<AddUserModal> {
       }
       
       _roleController.text = widget.user!.role ?? '';
-      _branchController.text = widget.user!.branch ?? '';
+      // Branch is set after fetching branches
     }
   }
 
@@ -158,21 +187,30 @@ class _AddUserModalState extends State<AddUserModal> {
             return Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.5,
+                maxHeight: MediaQuery.of(context).size.height * 0.7,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text(
-                      'Select Branch',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Select Branches',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Done', style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
+                        )
+                      ],
                     ),
                   ),
                   const Divider(height: 1),
@@ -201,7 +239,7 @@ class _AddUserModalState extends State<AddUserModal> {
                         separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
                         itemBuilder: (context, index) {
                           final b = _branches[index];
-                          final isSelected = _selectedBranch?.id == b.id || _branchController.text == b.name;
+                          final isSelected = _selectedBranches.any((element) => element.id == b.id);
                           return ListTile(
                             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                             title: Text(
@@ -223,13 +261,18 @@ class _AddUserModalState extends State<AddUserModal> {
                                 : null,
                             trailing: isSelected
                                 ? const Icon(Icons.check_circle, color: AppColors.primaryBlue, size: 20)
-                                : null,
+                                : const Icon(Icons.circle_outlined, color: Colors.grey, size: 20),
                             onTap: () {
-                              setState(() {
-                                _selectedBranch = b;
-                                _branchController.text = b.name;
+                              setModalState(() {
+                                if (isSelected) {
+                                  _selectedBranches.removeWhere((element) => element.id == b.id);
+                                } else {
+                                  _selectedBranches.add(b);
+                                }
                               });
-                              Navigator.pop(context);
+                              setState(() {
+                                _branchController.text = _selectedBranches.map((e) => e.name).join(', ');
+                              });
                             },
                           );
                         },
@@ -420,10 +463,8 @@ class _AddUserModalState extends State<AddUserModal> {
         .map((a) => a.module)
         .toList();
 
-    Branch? selectedBranch;
-    try {
-      selectedBranch = _branches.firstWhere((b) => b.name == _branchController.text.trim());
-    } catch (_) {}
+    final branchIds = _selectedBranches.map((b) => int.tryParse(b.id ?? '') ?? 0).toList();
+    final branches = _selectedBranches.map((b) => b.name).toList();
 
     final user = User(
       id: widget.user?.id,
@@ -433,8 +474,10 @@ class _AddUserModalState extends State<AddUserModal> {
       email: _emailController.text.trim(),
       phoneNumber: '+${_selectedCountry.phoneCode}${_phoneController.text.trim()}',
       role: _roleController.text.trim(),
-      branch: _branchController.text.trim(),
-      branchId: selectedBranch != null ? int.tryParse(selectedBranch.id ?? '') : null,
+      branch: branches.isNotEmpty ? branches.first : _branchController.text.trim(),
+      branchId: branchIds.isNotEmpty ? branchIds.first : null,
+      branches: branches,
+      branchIds: branchIds,
       createdBy: widget.user == null ? (GoldSession.instance.userId ?? 1) : widget.user?.createdBy,
       modules: activeModules,
       userAccess: _accessList,

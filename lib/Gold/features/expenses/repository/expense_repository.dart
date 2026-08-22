@@ -98,7 +98,7 @@ class ExpenseRepository {
     }
   }
 
-  /// Update an existing expense record
+  /// Update an existing expense record (Multipart)
   /// PUT /api/expense/update/:id
   Future<Expense?> updateExpense(
     int id, {
@@ -110,7 +110,8 @@ class ExpenseRepository {
     required String description,
     String? comment,
     String? note,
-    List<String>? file,
+    List<String>? existingFiles,
+    List<String>? newFilePaths,
     int? paidBy,
     int? branchId,
     String? quantity,
@@ -118,28 +119,61 @@ class ExpenseRepository {
   }) async {
     try {
       final url = '/expense/update/$id';
-      final payload = {
+      
+      final Map<String, dynamic> dataMap = {
         'expenseCategoryId': expenseCategoryId,
         'companyId': companyId,
         'expenseDate': expenseDate,
-        'amount': amount,
+        'amount': amount == amount.toInt() ? '${amount.toInt()}.00' : amount,
         'amountType': amountType,
         'description': description,
-        if (comment != null) 'comment': comment,
-        if (note != null) 'note': note,
-        if (paidBy != null) 'paidBy': paidBy,
-        if (branchId != null) 'branchId': branchId,
-        if (quantity != null) 'quantity': quantity,
-        if (service != null) 'service': service,
-        'file': file,
       };
+      
+      if (comment != null) dataMap['comment'] = comment;
+      if (note != null) dataMap['note'] = note;
+      if (paidBy != null) dataMap['paidBy'] = paidBy;
+      if (branchId != null) dataMap['branchId'] = branchId;
+      if (quantity != null) dataMap['quantity'] = quantity;
+      if (service != null) dataMap['service'] = service;
 
-      if (kDebugMode) {
-        debugPrint('🌐 UPDATE EXPENSE: $url');
-        debugPrint('📦 PAYLOAD: $payload');
+
+
+      // Combine existing URLs and new MultipartFiles into the same 'file' field array
+      final List<dynamic> allFiles = [];
+      if (existingFiles != null && existingFiles.isNotEmpty) {
+        allFiles.addAll(existingFiles);
+      }
+      
+      if (newFilePaths != null && newFilePaths.isNotEmpty) {
+        for (final filePath in newFilePaths) {
+          final fileName = filePath.split('/').last;
+          allFiles.add(await MultipartFile.fromFile(filePath, filename: fileName));
+        }
+      }
+      
+      if (allFiles.isNotEmpty) {
+        dataMap['file'] = allFiles;
+      } else {
+        dataMap['file'] = '';
       }
 
-      final response = await _dio.put(url, data: payload);
+      final formData = FormData.fromMap(dataMap);
+
+      if (kDebugMode) {
+        debugPrint('🌐 UPDATE EXPENSE (MULTIPART): $url');
+        debugPrint('📦 DATA FIELDS: $dataMap');
+      }
+
+      final response = await _dio.put(
+        url,
+        data: formData,
+        options: Options(
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        ),
+      );
+      
       if (response.statusCode == 200) {
         if (response.data['status'] == 'success' && response.data['data'] != null) {
           return Expense.fromJson(response.data['data']);
@@ -147,16 +181,16 @@ class ExpenseRepository {
       }
       return null;
     } catch (e) {
-      if (kDebugMode) debugPrint('❌ UPDATE EXPENSE ERROR: $e');
+      if (kDebugMode) debugPrint('❌ UPDATE EXPENSE MULTIPART ERROR: $e');
       rethrow;
     }
   }
 
   /// Upload receipt file for an expense (form data)
   /// PUT /api/expense/update/:id
-  Future<bool> uploadExpenseFiles(int id, List<String> filePaths) async {
+  Future<bool> uploadExpenseFiles(int id, List<String> filePaths, {bool isCreation = false}) async {
     try {
-      final url = '/expense/update/$id';
+      final url = isCreation ? '/expense/update/$id?image=history' : '/expense/update/$id';
       
       final List<MultipartFile> multipartFiles = [];
       for (final filePath in filePaths) {

@@ -157,7 +157,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     if (!mounted) return;
 
-    final filteredUsers = _users.where((u) => u.branchId?.toString() == _selectedBranch!.id).toList();
+    final selectedBranchIdInt = int.tryParse(_selectedBranch!.id ?? '') ?? 0;
+    final filteredUsers = _users.where((u) => 
+        u.branchIds.contains(selectedBranchIdInt) || u.branchId == selectedBranchIdInt
+    ).toList();
 
     showModalBottomSheet(
       context: context,
@@ -825,9 +828,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ? null
               : '${_quantityController.text.trim()} $_selectedUnit',
           service: _selectedService?.name,
-          file: _imagePaths.isNotEmpty
-              ? (widget.expense?.files ?? (_currentImageUrls.isNotEmpty ? _currentImageUrls : null))
-              : (_currentImageUrls.isNotEmpty ? _currentImageUrls : null),
+          existingFiles: _currentImageUrls.isNotEmpty ? _currentImageUrls : null,
+          newFilePaths: _imagePaths.isNotEmpty ? _imagePaths : null,
         );
       } else {
         savedExpense = await _repository.createExpense(
@@ -853,10 +855,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       }
 
       if (savedExpense != null) {
-        if (_imagePaths.isNotEmpty) {
+        // Only upload separately for Creation flow (POST). For Edit (PUT), images were sent multipart above.
+        if (!_isEditMode && _imagePaths.isNotEmpty) {
           await _repository.uploadExpenseFiles(
             savedExpense.id!,
             _imagePaths,
+            isCreation: true,
           );
         }
         

@@ -4,6 +4,7 @@ import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../../../widgets/gold_dialogs.dart';
+import '../../../core/network/gold_session.dart';
 import '../models/branch_model.dart';
 import '../repository/branch_repository.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -107,6 +108,8 @@ class _BranchesScreenState extends State<BranchesScreen> {
   }
 
   Widget _buildAddButton() {
+    if (!GoldSession.instance.canWrite('Branch')) return const SizedBox.shrink();
+    
     return SizedBox(
       height: 36,
       child: ElevatedButton(
@@ -198,26 +201,28 @@ class _BranchesScreenState extends State<BranchesScreen> {
                               branch.location,
                               style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
                             ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
-                                  onPressed: () async {
-                                    final result = await Navigator.pushNamed(context, AppRoutes.addBranch, arguments: branch);
-                                    if (result == true) {
-                                      _fetchBranches();
-                                    }
-                                  },
-                                ),
-                                IconButton(
-                                  icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
-                                  onPressed: () {
-                                    _showDeleteConfirmation(branch);
-                                  },
-                                ),
-                              ],
-                            ),
+                            trailing: GoldSession.instance.canWrite('Branch')
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
+                                        onPressed: () async {
+                                          final result = await Navigator.pushNamed(context, AppRoutes.addBranch, arguments: branch);
+                                          if (result == true) {
+                                            _fetchBranches();
+                                          }
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
+                                        onPressed: () {
+                                          _showDeleteConfirmation(branch);
+                                        },
+                                      ),
+                                    ],
+                                  )
+                                : null,
                           );
                         },
                       ),

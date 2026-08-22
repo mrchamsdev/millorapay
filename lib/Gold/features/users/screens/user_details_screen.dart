@@ -157,7 +157,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                 _DetailRow(label: 'Phone', value: _formatPhoneNumber(user.phoneNumber)),
                 _DetailRow(label: 'Gender', value: user.gender ?? '—'),
                 _DetailRow(label: 'Role', value: user.role ?? '—'),
-                _DetailRow(label: 'Branch', value: user.branch ?? '—', isLast: true),
+                _buildBranchRow(user),
               ],
             ),
           ),
@@ -212,6 +212,59 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  Widget _buildBranchRow(User user) {
+    List<String> branchesToDisplay = [];
+    if (user.branches.isNotEmpty) {
+      branchesToDisplay = user.branches;
+    } else if (user.branch != null && user.branch!.isNotEmpty) {
+      branchesToDisplay = [user.branch!];
+    }
+
+    if (branchesToDisplay.isEmpty) {
+      return const _DetailRow(label: 'Branch', value: '—', isLast: true);
+    }
+    
+    if (branchesToDisplay.length == 1) {
+      return _DetailRow(label: 'Branch', value: branchesToDisplay.first, isLast: true);
+    }
+
+    final branchesStr = branchesToDisplay.join(', ');
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(
+                width: 110,
+                child: Text('Branches', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Text(
+                      branchesStr,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

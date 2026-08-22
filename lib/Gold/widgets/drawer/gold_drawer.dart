@@ -75,42 +75,45 @@ class GoldDrawer extends StatelessWidget {
                         },
                       ),
                     */
-                    _DrawerItem(
-                      iconWidget: SvgPicture.asset(
-                        'assets/images/Branch2.svg', // Replace with your SVG
-                        width: 16,
-                        height: 16,
+                    if (GoldSession.instance.canRead('Branch'))
+                      _DrawerItem(
+                        iconWidget: SvgPicture.asset(
+                          'assets/images/Branch2.svg', // Replace with your SVG
+                          width: 16,
+                          height: 16,
+                        ),
+                        title: 'Branch',
+                        onTap: () {
+                          Navigator.pop(context); // Close Drawer
+                          Navigator.pushNamed(context, AppRoutes.branches);
+                        },
                       ),
-                      title: 'Branch',
-                      onTap: () {
-                        Navigator.pop(context); // Close Drawer
-                        Navigator.pushNamed(context, AppRoutes.branches);
-                      },
-                    ),
-                    _DrawerItem(
-                      iconWidget: SvgPicture.asset(
-                        'assets/images/Units.svg',
-                        width: 16,
-                        height: 16,
+                    if (GoldSession.instance.canRead('Units'))
+                      _DrawerItem(
+                        iconWidget: SvgPicture.asset(
+                          'assets/images/Units.svg',
+                          width: 16,
+                          height: 16,
+                        ),
+                        title: 'Units',
+                        onTap: () {
+                          Navigator.pop(context); // Close Drawer
+                          Navigator.pushNamed(context, AppRoutes.units);
+                        },
                       ),
-                      title: 'Units',
-                      onTap: () {
-                        Navigator.pop(context); // Close Drawer
-                        Navigator.pushNamed(context, AppRoutes.units);
-                      },
-                    ),
-                    _DrawerItem(
-                      iconWidget: SvgPicture.asset(
-                        'assets/images/Services.svg',
-                        width: 16,
-                        height: 16,
+                    if (GoldSession.instance.canRead('Services'))
+                      _DrawerItem(
+                        iconWidget: SvgPicture.asset(
+                          'assets/images/Services.svg',
+                          width: 16,
+                          height: 16,
+                        ),
+                        title: 'Services',
+                        onTap: () {
+                          Navigator.pop(context); // Close Drawer
+                          Navigator.pushNamed(context, AppRoutes.services);
+                        },
                       ),
-                      title: 'Services',
-                      onTap: () {
-                        Navigator.pop(context); // Close Drawer
-                        Navigator.pushNamed(context, AppRoutes.services);
-                      },
-                    ),
                   ],
                   
                   _SectionHeader(title: 'More Info & Support'),

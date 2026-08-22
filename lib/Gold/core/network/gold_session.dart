@@ -91,6 +91,15 @@ class GoldSession {
 
   // ── Save session after login ───────────────────────────────────────────────
 
+  /// Dynamically updates the user's access list and persists it.
+  Future<void> updateUserAccess(List<UserAccessEntry> newAccess) async {
+    _userAccess = List.from(newAccess);
+    final accessJson = jsonEncode(_userAccess.map((e) => e.toJson()).toList());
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kUserAccess, accessJson);
+    if (kDebugMode) debugPrint('[GoldSession] 🔄 User access updated: ${_userAccess.length} modules');
+  }
+
   /// Call this immediately after a successful login.
   /// Writes all fields to memory and [SharedPreferences].
   Future<void> save({
