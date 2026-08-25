@@ -103,8 +103,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
   }
 
   Widget _buildAddButton() {
-    if (!GoldSession.instance.canWrite('Services')) return const SizedBox.shrink();
-
     return SizedBox(
       height: 36,
       child: ElevatedButton(
@@ -196,29 +194,27 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                 service.name,
                                 style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
                               ),
-                              trailing: GoldSession.instance.canWrite('Services')
-                                  ? Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
-                                          onPressed: () async {
-                                            final result = await showDialog(
-                                              context: context,
-                                              builder: (context) => AddServicesModal(service: service),
-                                            );
-                                            if (result == true) _fetchServices();
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
-                                          onPressed: () {
-                                            _showDeleteConfirmation(service);
-                                          },
-                                        ),
-                                      ],
-                                    )
-                                  : null,
+                              trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
+                                            onPressed: () async {
+                                              final result = await showDialog(
+                                                context: context,
+                                                builder: (context) => AddServicesModal(service: service),
+                                              );
+                                              if (result == true) _fetchServices();
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
+                                            onPressed: () {
+                                              _showDeleteConfirmation(service);
+                                            },
+                                          ),
+                                        ],
+                                      ),
                             );
                           },
                         ),

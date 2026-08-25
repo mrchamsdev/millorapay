@@ -103,8 +103,6 @@ class _UnitsScreenState extends State<UnitsScreen> {
   }
 
   Widget _buildAddButton() {
-    if (!GoldSession.instance.canWrite('Units')) return const SizedBox.shrink();
-
     return SizedBox(
       height: 36,
       child: ElevatedButton(
@@ -196,29 +194,27 @@ class _UnitsScreenState extends State<UnitsScreen> {
                                 unit.name,
                                 style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
                               ),
-                              trailing: GoldSession.instance.canWrite('Units')
-                                  ? Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
-                                          onPressed: () async {
-                                            final result = await showDialog(
-                                              context: context,
-                                              builder: (context) => AddUnitsModal(unit: unit),
-                                            );
-                                            if (result == true) _fetchUnits();
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
-                                          onPressed: () {
-                                            _showDeleteConfirmation(unit);
-                                          },
-                                        ),
-                                      ],
-                                    )
-                                  : null,
+                              trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
+                                            onPressed: () async {
+                                              final result = await showDialog(
+                                                context: context,
+                                                builder: (context) => AddUnitsModal(unit: unit),
+                                              );
+                                              if (result == true) _fetchUnits();
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
+                                            onPressed: () {
+                                              _showDeleteConfirmation(unit);
+                                            },
+                                          ),
+                                        ],
+                                      ),
                             );
                           },
                         ),

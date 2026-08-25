@@ -40,10 +40,24 @@ class _UsersScreenState extends State<UsersScreen> {
   Future<void> _fetchUsers({bool showLoader = true}) async {
     if (showLoader) setState(() => _isLoading = true);
     try {
+      if (GoldSession.instance.userId != null) {
+        try {
+          final user = await _repository.getUser(GoldSession.instance.userId!);
+          if (user != null) {
+            await GoldSession.instance.updateUserAccess(user.userAccess, user.globalAccess);
+          }
+        } catch (_) {}
+      }
+
       final users = await _repository.getAllUsers();
       if (mounted) {
         setState(() {
-          _users = users;
+          final isCurrentUserAdmin = GoldSession.instance.userRole?.toLowerCase().contains('admin') == true;
+          if (!isCurrentUserAdmin) {
+            _users = users.where((u) => u.role?.toLowerCase().contains('admin') != true).toList();
+          } else {
+            _users = users;
+          }
         });
         _onSearch();
       }

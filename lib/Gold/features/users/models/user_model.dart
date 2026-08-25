@@ -1,26 +1,4 @@
-class UserAccess {
-  final String module;
-  final bool read;
-  final bool write;
-
-  UserAccess({
-    required this.module,
-    this.read = false,
-    this.write = false,
-  });
-
-  factory UserAccess.fromJson(Map<String, dynamic> json) => UserAccess(
-        module: json['module'] ?? '',
-        read: json['read'] ?? false,
-        write: json['write'] ?? false,
-      );
-
-  Map<String, dynamic> toJson() => {
-        'module': module,
-        'read': read,
-        'write': write,
-      };
-}
+import '../../auth/models/auth_models.dart';
 
 class User {
   final int? id;
@@ -39,7 +17,8 @@ class User {
   final String? updatedDate;
   final int? createdBy;
   final List<String> modules;
-  final List<UserAccess> userAccess;
+  final List<UserAccessEntry> globalAccess;
+  final List<BranchAccess> userAccess;
 
   User({
     this.id,
@@ -58,6 +37,7 @@ class User {
     this.updatedDate,
     this.createdBy,
     this.modules = const [],
+    this.globalAccess = const [],
     this.userAccess = const [],
   });
 
@@ -127,10 +107,19 @@ class User {
       updatedDate: json['updatedDate'] ?? json['updatedAt'],
       createdBy: json['createdBy'],
       modules: (json['modules'] as List?)?.map((e) => e.toString()).toList() ?? [],
-      userAccess: (json['userAccess'] as List?)
-              ?.map((e) => UserAccess.fromJson(e))
-              .toList() ??
-          [],
+      globalAccess: json['userAccess'] != null && json['userAccess'] is Map
+          ? (json['userAccess']['globalAccess'] as List? ?? [])
+              .map((e) => UserAccessEntry.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : [],
+      userAccess: json['userAccess'] != null && json['userAccess'] is Map
+          ? (json['userAccess']['branches'] as List? ?? [])
+              .map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
+              .toList()
+          : (json['userAccess'] as List?)
+                  ?.map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
+                  .toList() ??
+              [],
     );
   }
 
@@ -145,6 +134,9 @@ class User {
         if (gender != null) 'gender': gender,
         if (createdBy != null) 'createdBy': createdBy,
         'modules': modules,
-        'userAccess': userAccess.map((e) => e.toJson()).toList(),
+        'userAccess': {
+          'globalAccess': globalAccess.map((e) => e.toJson()).toList(),
+          'branches': userAccess.map((e) => e.toJson()).toList(),
+        },
       };
 }

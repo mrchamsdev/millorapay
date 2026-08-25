@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
+import '../../../core/network/gold_session.dart';
 import '../../branch/models/branch_model.dart';
 import '../../branch/repository/branch_repository.dart';
 import '../../categories/models/category_model.dart';
@@ -51,7 +52,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String _selectedCurrency = 'INR';
   DateTime _selectedDate = DateTime.now();
   final List<String> _imagePaths = [];
-  List<String> _currentImageUrls = [];
+  List<String?> _currentImageUrls = [];
   bool _isLoading = false;
 
   List<String> _units = [];
@@ -350,7 +351,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       final list = await _branchRepository.getAllBranches();
       if (mounted) {
         setState(() {
-          _branches = list;
+          if (GoldSession.instance.userRole?.toLowerCase().contains('admin') == true) {
+            _branches = list;
+          } else {
+            _branches = list.where((b) {
+              final bId = int.tryParse(b.id ?? '') ?? 0;
+              return GoldSession.instance.canWrite('Expenses', branchId: bId);
+            }).toList();
+          }
           _isLoadingBranches = false;
         });
       }
@@ -488,7 +496,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _selectedCurrency = exp.amountType;
     _selectedCategory = exp.expenseCategory;
     _categoryController.text = exp.description.isNotEmpty ? exp.description : (exp.expenseCategory?.name ?? '');
-    _currentImageUrls = List.from(exp.files ?? (exp.file != null ? [exp.file!] : []));
+    _currentImageUrls = List<String?>.from(exp.files ?? (exp.file != null ? [exp.file!] : []));
     try {
       _selectedDate = DateTime.parse(exp.expenseDate);
       _dateController.text = _formatDateForMask(_selectedDate);
@@ -671,7 +679,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   /// Opens the image picker bottom sheet.
   Future<void> _openImagePicker() async {
-    final totalImages = _currentImageUrls.length + _imagePaths.length;
+    final totalImages = _currentImageUrls.where((e) => e != null).length + _imagePaths.length;
     if (totalImages >= 5) {
       GoldDialogs.showSnackBar(
         context,
@@ -728,7 +736,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       );
       if (image != null) {
         setState(() {
-          final totalImages = _currentImageUrls.length + _imagePaths.length;
+          final totalImages = _currentImageUrls.where((e) => e != null).length + _imagePaths.length;
           if (totalImages < 5) {
             _imagePaths.add(image.path);
           }
@@ -808,6 +816,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           : (_selectedCategory?.name ?? '');
 
       if (_isEditMode) {
+        List<int> computedReplacedIndices = [];
+        if (_imagePaths.isNotEmpty) {
+          for (int i = 0; i < _currentImageUrls.length; i++) {
+            if (_currentImageUrls[i] == null) {
+              computedReplacedIndices.add(i + 1);
+            }
+          }
+        }
+        
         savedExpense = await _repository.updateExpense(
           widget.expense!.id!,
           expenseCategoryId: _selectedCategory!.id!,
@@ -828,8 +845,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ? null
               : '${_quantityController.text.trim()} $_selectedUnit',
           service: _selectedService?.name,
-          existingFiles: _currentImageUrls.isNotEmpty ? _currentImageUrls : null,
+          existingFiles: _currentImageUrls.where((e) => e != null).cast<String>().toList().isNotEmpty
+              ? _currentImageUrls.where((e) => e != null).cast<String>().toList()
+              : null,
           newFilePaths: _imagePaths.isNotEmpty ? _imagePaths : null,
+          replacedFileIndices: computedReplacedIndices.isNotEmpty ? computedReplacedIndices : null,
         );
       } else {
         savedExpense = await _repository.createExpense(
@@ -1423,6 +1443,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ..._currentImageUrls.asMap().entries.map((entry) {
                       final index = entry.key;
                       final url = entry.value;
+                      if (url == null || url.isEmpty) return const SizedBox.shrink();
                       return Stack(
                         children: [
                           ClipRRect(
@@ -1440,7 +1461,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             child: GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  _currentImageUrls.removeAt(index);
+                                  _currentImageUrls[index] = null;
                                 });
                               },
                               child: Container(
@@ -1465,6 +1486,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ..._imagePaths.asMap().entries.map((entry) {
                       final index = entry.key;
                       final path = entry.value;
+                      if (path.isEmpty) return const SizedBox.shrink();
                       return Stack(
                         children: [
                           Container(

@@ -177,13 +177,21 @@ class Expense {
     List<String>? parsedFiles;
     String? firstFile;
     if (json['file'] is List) {
-      parsedFiles = (json['file'] as List).map((e) => e.toString()).toList();
+      parsedFiles = (json['file'] as List)
+          .map((e) => e.toString().trim())
+          .where((url) => url.isNotEmpty && url.toLowerCase() != 'null')
+          .toList();
       if (parsedFiles.isNotEmpty) {
         firstFile = parsedFiles.first;
+      } else {
+        parsedFiles = null;
       }
-    } else if (json['file'] != null && json['file'].toString().isNotEmpty) {
-      firstFile = json['file'].toString();
-      parsedFiles = [firstFile];
+    } else if (json['file'] != null) {
+      final singleFile = json['file'].toString().trim();
+      if (singleFile.isNotEmpty && singleFile.toLowerCase() != 'null') {
+        firstFile = singleFile;
+        parsedFiles = [firstFile];
+      }
     }
 
     return Expense(

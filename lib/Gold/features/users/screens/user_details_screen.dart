@@ -7,6 +7,7 @@ import '../../../widgets/no_access_widget.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../models/user_model.dart';
 import '../repository/user_repository.dart';
+import '../../auth/models/auth_models.dart';
 import 'add_user_modal.dart';
 
 class UserDetailsScreen extends StatefulWidget {
@@ -164,11 +165,39 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           const SizedBox(height: 20),
 
           // ── User Access ──────────────────────────────────────────
-          if (user.userAccess.isNotEmpty) ...[
+          if (user.globalAccess.isNotEmpty || user.userAccess.isNotEmpty) ...[
             _buildSection(
               title: 'User Access',
               icon: Icons.security_outlined,
-              child: _buildAccessTable(user.userAccess),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (user.globalAccess.isNotEmpty) ...[
+                    _buildAccessTable(user.globalAccess),
+                    if (user.userAccess.isNotEmpty)
+                      const SizedBox(height: 12),
+                  ],
+                  ...user.userAccess.map((branchAccess) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                          child: Text(
+                            branchAccess.branchName,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        _buildAccessTable(branchAccess.access),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
           ],
@@ -361,7 +390,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     );
   }
 
-  Widget _buildAccessTable(List<UserAccess> access) {
+  Widget _buildAccessTable(List<UserAccessEntry> access) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Column(
@@ -372,10 +401,6 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
               Expanded(
                 flex: 3,
                 child: Text('Module', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-              ),
-              SizedBox(
-                width: 56,
-                child: Center(child: Text('Read', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary))),
               ),
               SizedBox(
                 width: 56,
@@ -463,7 +488,7 @@ class _DetailRow extends StatelessWidget {
 }
 
 class _AccessRow extends StatelessWidget {
-  final UserAccess access;
+  final UserAccessEntry access;
   const _AccessRow({required this.access});
 
   @override
@@ -475,10 +500,6 @@ class _AccessRow extends StatelessWidget {
           Expanded(
             flex: 3,
             child: Text(access.module, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
-          ),
-          SizedBox(
-            width: 56,
-            child: Center(child: _AccessIcon(allowed: access.read)),
           ),
           SizedBox(
             width: 56,

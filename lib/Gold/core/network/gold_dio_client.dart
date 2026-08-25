@@ -70,8 +70,10 @@ class GoldDioClient {
         onResponse: (response, handler) {
           if (kDebugMode) {
             final urlStr = response.requestOptions.uri.toString();
-            // Suppress huge response logs for the expense screen GET API
-            if (!urlStr.contains('/expense/all')) {
+            // Suppress huge response logs for specific GET APIs
+            if (!urlStr.contains('/expense/all') && 
+                !urlStr.contains('/notifications') &&
+                !urlStr.contains('/users/all')) {
               _logResponse(response);
             }
           }

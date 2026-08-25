@@ -97,14 +97,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!GoldSession.instance.canRead('Category')) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: NoAccessWidget(moduleName: 'Category'),
-      );
-    }
-
-    final canWrite = GoldSession.instance.canWrite('Category');
+    final canWrite = true;
 
     return Scaffold(
       backgroundColor: AppColors.white,
