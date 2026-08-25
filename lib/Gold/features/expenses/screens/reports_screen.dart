@@ -13,6 +13,7 @@ import '../../../widgets/gold_app_bar.dart';
 import '../models/expense_model.dart';
 import '../repository/expense_repository.dart';
 import 'charts_screen.dart'; // For DateFilterPickerBottomSheet
+import '../../../core/network/gold_session.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({Key? key}) : super(key: key);
@@ -66,8 +67,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
     });
 
     try {
-      final branches = await _branchRepository.getAllBranches();
-      if (mounted) setState(() => _branches = branches);
+      final allBranches = await _branchRepository.getAllBranches();
+      final allowedBranchIds = GoldSession.instance.getBranchIdsForReports('Expenses');
+      final filteredBranches = allowedBranchIds == null
+          ? allBranches
+          : allBranches.where((b) => allowedBranchIds.contains(int.tryParse(b.id ?? ''))).toList();
+      if (mounted) setState(() => _branches = filteredBranches);
     } catch (_) {} finally {
       if (mounted) setState(() => _isLoadingBranches = false);
     }

@@ -32,6 +32,7 @@ class GoldSession {
   static const _kCompanyType         = 'company_type';
   static const _kCompanyName         = 'company_name';
   static const _kUserAccess          = 'user_access'; // JSON-encoded list
+  static const _kGlobalAccess        = 'global_access'; // JSON-encoded list
   static const _kPasswordChangedDate = 'password_changed_date';
   static const _kUserRole            = 'user_role';
 
@@ -45,7 +46,8 @@ class GoldSession {
   String? _companyName;
   String? _passwordChangedDate;
   String? _userRole;
-  List<UserAccessEntry> _userAccess = [];
+  List<UserAccessEntry> _globalAccess = [];
+  List<BranchAccess> _userAccess = [];
 
   // ── Getters ────────────────────────────────────────────────────────────────
 
@@ -60,28 +62,106 @@ class GoldSession {
   String? get userRole            => _userRole;
 
   /// Full list of module access entries for the logged-in user.
-  List<UserAccessEntry> get userAccess => List.unmodifiable(_userAccess);
+  List<UserAccessEntry> get globalAccess => List.unmodifiable(_globalAccess);
+  List<BranchAccess> get userAccess => List.unmodifiable(_userAccess);
 
   bool get isLoggedIn => _token != null && _token!.isNotEmpty;
 
-  // ── Access control helpers ─────────────────────────────────────────────────
+  bool _isGlobalModule(String module) {
+    final lower = module.toLowerCase();
+    return lower != 'expenses' && lower != 'users';
+  }
 
   /// Returns true if the user has READ access to [module].
-  /// Module names are case-insensitive (e.g. 'gold', 'Gold', 'GOLD' all match).
-  bool canRead(String module) {
-    final entry = _findEntry(module);
+  /// If it is a global module, returns true.
+  /// If [branchId] is provided, checks access for that specific branch.
+  /// If [branchId] is null, returns true if the user has read access in ANY branch.
+  bool canRead(String module, {int? branchId}) {
+    // 1. Check globalAccess
+    final globalEntry = _globalAccess.where((e) => e.module.toLowerCase() == module.toLowerCase()).firstOrNull;
+    if (globalEntry != null && (globalEntry.read || globalEntry.write)) return true;
+
+    if (_isGlobalModule(module)) return true; // Legacy fallback
+    
+    if (branchId == null) {
+      return getAccessibleBranchesForModule(module).isNotEmpty;
+    }
+    
+    final entry = _findEntry(module, branchId);
     return (entry?.read ?? false) || (entry?.write ?? false);
   }
 
   /// Returns true if the user has WRITE access to [module].
-  bool canWrite(String module) {
-    final entry = _findEntry(module);
+  bool canWrite(String module, {int? branchId}) {
+    // 1. Check globalAccess
+    final globalEntry = _globalAccess.where((e) => e.module.toLowerCase() == module.toLowerCase()).firstOrNull;
+    if (globalEntry != null && globalEntry.write) return true;
+
+    if (_isGlobalModule(module)) return true; // Legacy fallback
+    
+    if (branchId == null) {
+      return _userAccess.any((branch) {
+        final entry = _findEntry(module, branch.branchId);
+        return entry?.write ?? false;
+      });
+    }
+    
+    final entry = _findEntry(module, branchId);
     return entry?.write ?? false;
   }
 
-  UserAccessEntry? _findEntry(String module) {
+  /// Returns a list of branches where the user has read or write access for the given [module].
+  List<BranchAccess> getAccessibleBranchesForModule(String module) {
+    if (_isGlobalModule(module)) return _userAccess; // Or return all branches
+
+    return _userAccess.where((branch) {
+      try {
+        final entry = branch.access.firstWhere((e) => e.module.toLowerCase() == module.toLowerCase());
+        return entry.read || entry.write;
+      } catch (_) {
+        return false;
+      }
+    }).toList();
+  }
+
+  /// Returns a list of branch IDs where the user has read access for the given [module].
+  /// Returns null if the user is an Admin and should bypass filtering.
+  List<int>? getBranchIdsForCharts(String module) {
+    if (userRole?.toLowerCase().contains('admin') == true) {
+      return null;
+    }
+
+    return _userAccess.where((branch) {
+      try {
+        final entry = branch.access.firstWhere((e) => e.module.toLowerCase() == module.toLowerCase());
+        return entry.read;
+      } catch (_) {
+        return false;
+      }
+    }).map((b) => b.branchId).toList();
+  }
+
+  /// Returns a list of branch IDs where the user has read access for the given [module].
+  /// Returns null if the user is an Admin and should bypass filtering.
+  List<int>? getBranchIdsForReports(String module) {
+    if (userRole?.toLowerCase().contains('admin') == true) {
+      return null;
+    }
+
+    return _userAccess.where((branch) {
+      try {
+        final entry = branch.access.firstWhere((e) => e.module.toLowerCase() == module.toLowerCase());
+        return entry.read;
+      } catch (_) {
+        return false;
+      }
+    }).map((b) => b.branchId).toList();
+  }
+
+  UserAccessEntry? _findEntry(String module, int branchId) {
     try {
-      return _userAccess.firstWhere(
+      final branch = _userAccess.firstWhere((b) => b.branchId == branchId);
+      return branch.access.firstWhere(
         (e) => e.module.toLowerCase() == module.toLowerCase(),
       );
     } catch (_) {
@@ -92,11 +172,18 @@ class GoldSession {
   // ── Save session after login ───────────────────────────────────────────────
 
   /// Dynamically updates the user's access list and persists it.
-  Future<void> updateUserAccess(List<UserAccessEntry> newAccess) async {
+  Future<void> updateUserAccess(List<BranchAccess> newAccess, [List<UserAccessEntry>? globalAccess]) async {
     _userAccess = List.from(newAccess);
     final accessJson = jsonEncode(_userAccess.map((e) => e.toJson()).toList());
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kUserAccess, accessJson);
+
+    if (globalAccess != null) {
+      _globalAccess = List.from(globalAccess);
+      final globalJson = jsonEncode(_globalAccess.map((e) => e.toJson()).toList());
+      await prefs.setString(_kGlobalAccess, globalJson);
+    }
+
     if (kDebugMode) debugPrint('[GoldSession] 🔄 User access updated: ${_userAccess.length} modules');
   }
 
@@ -112,7 +199,8 @@ class GoldSession {
     String? companyName,
     String? passwordChangedDate,
     String? userRole,
-    List<UserAccessEntry> userAccess = const [],
+    List<UserAccessEntry> globalAccess = const [],
+    List<BranchAccess> userAccess = const [],
   }) async {
     // Memory
     _token               = token;
@@ -124,9 +212,11 @@ class GoldSession {
     _companyName         = companyName;
     _passwordChangedDate = passwordChangedDate;
     _userRole            = userRole;
+    _globalAccess        = List.from(globalAccess);
     _userAccess          = List.from(userAccess);
 
     // Serialise userAccess → JSON string for persistence
+    final globalJson = jsonEncode(globalAccess.map((e) => e.toJson()).toList());
     final accessJson = jsonEncode(userAccess.map((e) => e.toJson()).toList());
 
     // Persist
@@ -140,6 +230,7 @@ class GoldSession {
     if (companyName         != null) await prefs.setString(_kCompanyName,         companyName);
     if (passwordChangedDate != null) await prefs.setString(_kPasswordChangedDate, passwordChangedDate);
     if (userRole            != null) await prefs.setString(_kUserRole,            userRole);
+    await prefs.setString(_kGlobalAccess, globalJson);
     await prefs.setString(_kUserAccess, accessJson);
 
     if (kDebugMode) {
@@ -153,7 +244,7 @@ class GoldSession {
       debugPrint('║   companyType : $companyType');
       debugPrint('║   companyName : $companyName');
       debugPrint('║   userRole    : $userRole');
-      debugPrint('║   userAccess  : ${userAccess.map((e) => "${e.module}[R:${e.read},W:${e.write}]").join(", ")}');
+      debugPrint('║   userAccess  : ${_userAccess.length} branches');
       debugPrint('║   token       : ${token.substring(0, 20)}...');
       debugPrint('╚══════════════════════════════════════════════════════════');
     }
@@ -176,13 +267,26 @@ class GoldSession {
     _userRole            = prefs.getString(_kUserRole);
 
     // Restore userAccess from JSON
+    final globalJson = prefs.getString(_kGlobalAccess);
+    if (globalJson != null && globalJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(globalJson) as List;
+        _globalAccess = decoded
+            .whereType<Map>()
+            .map((e) => UserAccessEntry.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      } catch (_) {
+        _globalAccess = [];
+      }
+    }
+
     final accessJson = prefs.getString(_kUserAccess);
     if (accessJson != null && accessJson.isNotEmpty) {
       try {
         final decoded = jsonDecode(accessJson) as List;
         _userAccess = decoded
             .whereType<Map>()
-            .map((e) => UserAccessEntry.fromJson(Map<String, dynamic>.from(e)))
+            .map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
             .toList();
       } catch (_) {
         _userAccess = [];
@@ -208,6 +312,7 @@ class GoldSession {
     _companyName         = null;
     _passwordChangedDate = null;
     _userRole            = null;
+    _globalAccess        = [];
     _userAccess          = [];
 
     final prefs = await SharedPreferences.getInstance();
@@ -220,6 +325,7 @@ class GoldSession {
     await prefs.remove(_kCompanyName);
     await prefs.remove(_kPasswordChangedDate);
     await prefs.remove(_kUserRole);
+    await prefs.remove(_kGlobalAccess);
     await prefs.remove(_kUserAccess);
 
     debugPrint('[GoldSession] 🗑️  Session cleared.');

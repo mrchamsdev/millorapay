@@ -876,8 +876,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 */
-                Expanded(
-                    child: Container(
+                if (GoldSession.instance.canRead('Expenses'))
+                  Expanded(
+                      child: Container(
                       height: 72,
                       decoration: BoxDecoration(
                         color: AppColors.white,
@@ -1584,13 +1585,7 @@ Future<void> _loadTelemetryData() async {
         try {
           final user = await UserRepository().getUser(GoldSession.instance.userId!);
           if (user != null) {
-            // Map UserAccess to UserAccessEntry (structurally identical, different models)
-            final accessEntries = user.userAccess.map((e) => UserAccessEntry(
-              module: e.module,
-              read: e.read,
-              write: e.write,
-            )).toList();
-            await GoldSession.instance.updateUserAccess(accessEntries);
+            await GoldSession.instance.updateUserAccess(user.userAccess);
             if (mounted) {
               widget.onSessionRefreshed?.call();
             }

@@ -16,6 +16,7 @@ import '../widgets/expense_card.dart';
 import '../widgets/section_header.dart';
 import '../../branch/repository/branch_repository.dart';
 import '../../branch/models/branch_model.dart';
+import '../../users/repository/user_repository.dart';
 import 'charts_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
@@ -68,13 +69,31 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
       setState(() => _isLoading = true);
     }
     try {
+      if (GoldSession.instance.userId != null) {
+        try {
+          final user = await UserRepository().getUser(GoldSession.instance.userId!);
+          if (user != null) {
+            await GoldSession.instance.updateUserAccess(user.userAccess, user.globalAccess);
+          }
+        } catch (_) {}
+      }
+
       final results = await Future.wait([
         _repository.getAllExpenses(),
         _branchRepository.getAllBranches(),
       ]);
       setState(() {
         _monthGroups = results[0] as List<ExpenseMonthGroup>;
-        _branches = results[1] as List<Branch>;
+        final loadedBranches = results[1] as List<Branch>;
+        
+        if (GoldSession.instance.userRole?.toLowerCase().contains('admin') == true) {
+          _branches = loadedBranches;
+        } else {
+          _branches = loadedBranches.where((b) {
+            final bId = int.tryParse(b.id ?? '') ?? 0;
+            return GoldSession.instance.canRead('Expenses', branchId: bId);
+          }).toList();
+        }
         _isLoading = false;
       });
       filterExpenses(_searchController.text);
@@ -215,7 +234,6 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        if (GoldSession.instance.canWrite('Expenses')) ...[
                           GestureDetector(
                             onTap: () {
                               Navigator.pushNamed(context, AppRoutes.reports);
@@ -227,7 +245,6 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
                             ),
                           ),
                           SizedBox(width: 4.w),
-                        ],
                         GestureDetector(
                           onTap: () {
                             Navigator.push(

@@ -108,8 +108,6 @@ class _BranchesScreenState extends State<BranchesScreen> {
   }
 
   Widget _buildAddButton() {
-    if (!GoldSession.instance.canWrite('Branch')) return const SizedBox.shrink();
-    
     return SizedBox(
       height: 36,
       child: ElevatedButton(
@@ -201,28 +199,26 @@ class _BranchesScreenState extends State<BranchesScreen> {
                               branch.location,
                               style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
                             ),
-                            trailing: GoldSession.instance.canWrite('Branch')
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
-                                        onPressed: () async {
-                                          final result = await Navigator.pushNamed(context, AppRoutes.addBranch, arguments: branch);
-                                          if (result == true) {
-                                            _fetchBranches();
-                                          }
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
-                                        onPressed: () {
-                                          _showDeleteConfirmation(branch);
-                                        },
-                                      ),
-                                    ],
-                                  )
-                                : null,
+                            trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
+                                          onPressed: () async {
+                                            final result = await Navigator.pushNamed(context, AppRoutes.addBranch, arguments: branch);
+                                            if (result == true) {
+                                              _fetchBranches();
+                                            }
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
+                                          onPressed: () {
+                                            _showDeleteConfirmation(branch);
+                                          },
+                                        ),
+                                      ],
+                                    ),
                           );
                         },
                       ),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -116,6 +117,7 @@ class ExpenseRepository {
     int? branchId,
     String? quantity,
     String? service,
+    List<int>? replacedFileIndices,
   }) async {
     try {
       final url = '/expense/update/$id';
@@ -151,21 +153,27 @@ class ExpenseRepository {
         }
       }
       
+      String queryUrl = url;
       if (allFiles.isNotEmpty) {
         dataMap['file'] = allFiles;
       } else {
-        dataMap['file'] = '';
+        dataMap['file'] = 'null';
+      }
+
+      if (replacedFileIndices != null && replacedFileIndices.isNotEmpty) {
+        final zeroBasedIndices = replacedFileIndices.map((i) => i - 1).toList();
+        dataMap['fileIndex'] = zeroBasedIndices;
       }
 
       final formData = FormData.fromMap(dataMap);
 
       if (kDebugMode) {
-        debugPrint('🌐 UPDATE EXPENSE (MULTIPART): $url');
+        debugPrint('🌐 UPDATE EXPENSE (MULTIPART): $queryUrl');
         debugPrint('📦 DATA FIELDS: $dataMap');
       }
 
       final response = await _dio.put(
-        url,
+        queryUrl,
         data: formData,
         options: Options(
           headers: {

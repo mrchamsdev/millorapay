@@ -119,7 +119,7 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
     }
     
     if (cleaned.isEmpty) return [];
-    return cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    return cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty && e.toLowerCase() != 'null').toList();
   }
 
   String _formatChangeHistory(ExpenseHistoryItem historyItem) {
@@ -153,7 +153,7 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
         final removedCount = oldList.where((e) => !newList.contains(e)).length;
 
         if (addedCount > 0) {
-          changeTexts.add('$addedCount receipt image${addedCount > 1 ? 's' : ''} updated');
+          changeTexts.add('$addedCount receipt image${addedCount > 1 ? 's' : ''} added');
         }
         if (removedCount > 0) {
           changeTexts.add('$removedCount receipt image${removedCount > 1 ? 's' : ''} removed');
@@ -199,7 +199,8 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
 
     final role = GoldSession.instance.userRole?.toLowerCase();
     final isAdmin = role != null && role.contains('admin');
-    final canModify = isAdmin || widget.expense.status != 'others';
+    final bId = int.tryParse(widget.expense.branch?.id ?? '') ?? 0;
+    final canModify = isAdmin || GoldSession.instance.canWrite('Expenses', branchId: bId);
 
     final displayNote =
         (_expense.note != null && _expense.note!.isNotEmpty)
@@ -225,7 +226,7 @@ class _ExpenseDetailsScreenState extends State<ExpenseDetailsScreen> {
           centerTitle: true,
           showNotification: false,
           actions: [
-            if (GoldSession.instance.canWrite('Expenses') && canModify) ...[
+            if (canModify) ...[
               IconButton(
                 icon: Image.asset(
                   'assets/images/delete.png',

@@ -252,26 +252,14 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            onSelectionChanged(tempSelected);
-                            Navigator.pop(context);
-                          },
-                          child: const Text('Done', style: TextStyle(color: AppColors.primaryBlue)),
-                        )
-                      ],
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ),
                   const Divider(height: 1),
@@ -283,27 +271,47 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                       itemBuilder: (context, index) {
                         final item = items[index];
                         final checked = tempSelected.any((e) => isSelected(e, item));
-                        return CheckboxListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                           title: Text(
                             getName(item),
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: checked ? AppColors.primaryBlue : const Color(0xFF727271),
+                              color: Color(0xFF727271),
                             ),
                           ),
-                          value: checked,
-                          activeColor: const Color(0xFF003366),
-                          controlAffinity: ListTileControlAffinity.trailing,
-                          onChanged: (bool? val) {
+                          trailing: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: Transform.scale(
+                              scale: 0.8,
+                              child: Checkbox(
+                                value: checked,
+                                activeColor: const Color(0xFF00B4D8),
+                                side: const BorderSide(color: Color(0xFF00B4D8)),
+                                onChanged: (bool? val) {
+                                  setModalState(() {
+                                    if (val == true) {
+                                      tempSelected.add(item);
+                                    } else {
+                                      tempSelected.removeWhere((e) => isSelected(e, item));
+                                    }
+                                  });
+                                  onSelectionChanged(tempSelected);
+                                },
+                              ),
+                            ),
+                          ),
+                          onTap: () {
                             setModalState(() {
-                              if (val == true) {
+                              if (!checked) {
                                 tempSelected.add(item);
                               } else {
                                 tempSelected.removeWhere((e) => isSelected(e, item));
                               }
                             });
+                            onSelectionChanged(tempSelected);
                           },
                         );
                       },

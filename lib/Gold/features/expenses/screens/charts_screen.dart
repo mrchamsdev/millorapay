@@ -13,6 +13,7 @@ import '../../users/repository/user_repository.dart';
 import '../../../widgets/gold_app_bar.dart';
 import '../models/expense_model.dart';
 import '../repository/expense_repository.dart';
+import '../../../core/network/gold_session.dart';
 
 class CategoryWiseExpense {
   final String categoryName;
@@ -81,8 +82,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
     });
 
     try {
-      final branches = await _branchRepository.getAllBranches();
-      if (mounted) setState(() => _branches = branches);
+      final allBranches = await _branchRepository.getAllBranches();
+      final allowedBranchIds = GoldSession.instance.getBranchIdsForCharts('Expenses');
+      final filteredBranches = allowedBranchIds == null 
+          ? allBranches 
+          : allBranches.where((b) => allowedBranchIds.contains(int.tryParse(b.id ?? ''))).toList();
+      if (mounted) setState(() => _branches = filteredBranches);
     } catch (_) {} finally {
       if (mounted) setState(() => _isLoadingBranches = false);
     }
@@ -1509,9 +1514,7 @@ class MemberPickerBottomSheet extends StatelessWidget {
 
       final branchIdInt = int.tryParse(branchIdStr ?? '') ?? 0;
       branchUsers = allUsers.where((u) {
-        final isBranchMember = u.branchIds.contains(branchIdInt) || u.branchId == branchIdInt;
-        final isPaidByUser = paidByUserIds.contains(u.id.toString());
-        return isBranchMember && isPaidByUser;
+        return paidByUserIds.contains(u.id.toString());
       }).toList();
     }
 
@@ -1566,7 +1569,7 @@ class MemberPickerBottomSheet extends StatelessWidget {
                         ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                           title: Text(
-                            u.name,
+                            '${u.name} ${u.lastName ?? ''}'.trim(),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,

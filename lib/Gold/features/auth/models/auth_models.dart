@@ -124,6 +124,37 @@ class UserAccessEntry {
   Map<String, dynamic> toJson() => {'module': module, 'read': read, 'write': write};
 }
 
+class BranchAccess {
+  final int branchId;
+  final String branchName;
+  final List<UserAccessEntry> access;
+
+  const BranchAccess({
+    required this.branchId,
+    required this.branchName,
+    required this.access,
+  });
+
+  factory BranchAccess.fromJson(Map<String, dynamic> json) {
+    return BranchAccess(
+      branchId: json['branchId'] is int
+          ? json['branchId'] as int
+          : int.tryParse(json['branchId']?.toString() ?? '') ?? 0,
+      branchName: json['branchName']?.toString() ?? '',
+      access: (json['access'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => UserAccessEntry.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'branchId': branchId,
+        'branchName': branchName,
+        'access': access.map((e) => e.toJson()).toList(),
+      };
+}
+
 class LoginResponse {
   final String? token;        // root-level JWT — used for Bearer auth
   final int?    userId;
@@ -135,7 +166,8 @@ class LoginResponse {
   final String? accountStatus;
   final String? passwordChangedDate; // ISO-8601 from API
   final String? role;
-  final List<UserAccessEntry> userAccess;
+  final List<UserAccessEntry> globalAccess;
+  final List<BranchAccess> userAccess;
 
   const LoginResponse({
     this.token,
@@ -148,6 +180,7 @@ class LoginResponse {
     this.accountStatus,
     this.passwordChangedDate,
     this.role,
+    this.globalAccess = const [],
     this.userAccess = const [],
   });
 
@@ -164,11 +197,27 @@ class LoginResponse {
         ? userMap['id'] as int
         : int.tryParse(userMap['id']?.toString() ?? '');
 
-    // Parse userAccess array
-    final accessList = (userMap['userAccess'] as List? ?? [])
-        .whereType<Map>()
-        .map((e) => UserAccessEntry.fromJson(Map<String, dynamic>.from(e)))
-        .toList();
+    // Parse userAccess object (globalAccess and branches)
+    List<UserAccessEntry> globalList = [];
+    List<BranchAccess> accessList = [];
+    
+    if (userMap['userAccess'] is Map) {
+      final accessMap = userMap['userAccess'] as Map;
+      globalList = (accessMap['globalAccess'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => UserAccessEntry.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      accessList = (accessMap['branches'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } else if (userMap['userAccess'] is List) {
+      // Fallback for old format
+      accessList = (userMap['userAccess'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
 
     return LoginResponse(
       token:               token,
@@ -181,6 +230,7 @@ class LoginResponse {
       accountStatus:       userMap['accountStatus']?.toString(),
       passwordChangedDate: userMap['passwordChangedDate']?.toString(),
       role:                userMap['role']?.toString(),
+      globalAccess:        globalList,
       userAccess:          accessList,
     );
   }

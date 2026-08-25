@@ -120,6 +120,7 @@ class AuthRepository {
       companyName:         res.companyName,
       passwordChangedDate: res.passwordChangedDate,
       userRole:            res.role,
+      globalAccess:        res.globalAccess,
       userAccess:          res.userAccess,
     );
   }

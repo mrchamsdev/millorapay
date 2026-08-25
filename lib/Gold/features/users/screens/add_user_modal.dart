@@ -11,6 +11,7 @@ import '../../branch/models/branch_model.dart';
 import '../../branch/repository/branch_repository.dart';
 import '../models/user_model.dart';
 import '../repository/user_repository.dart';
+import '../../auth/models/auth_models.dart';
 
 class AddUserModal extends StatefulWidget {
   final User? user;
@@ -45,19 +46,16 @@ class _AddUserModalState extends State<AddUserModal> {
 
   late Country _selectedCountry;
 
-  final List<String> _moduleNames = [
-    // 'Gold',
+  final List<String> _branchModuleNames = [
     'Expenses',
-    // 'Loan',
-    'Category',
+  ];
+  
+  final List<String> _globalModuleNames = [
     'Users',
-    // 'Customer',
-    'Branch',
-    'Units',
-    'Services'
   ];
 
-  late List<UserAccess> _accessList;
+  Map<int, List<UserAccessEntry>> _branchAccessMap = {};
+  List<UserAccessEntry> _globalAccessList = [];
 
   @override
   void initState() {
@@ -193,24 +191,15 @@ class _AddUserModalState extends State<AddUserModal> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Select Branches',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Done', style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
-                        )
-                      ],
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Text(
+                      'Select Branches',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ),
                   const Divider(height: 1),
@@ -244,10 +233,10 @@ class _AddUserModalState extends State<AddUserModal> {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                             title: Text(
                               b.name,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: isSelected ? AppColors.primaryBlue : AppColors.textPrimary,
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             subtitle: b.location.isNotEmpty
@@ -259,9 +248,27 @@ class _AddUserModalState extends State<AddUserModal> {
                                     ),
                                   )
                                 : null,
-                            trailing: isSelected
-                                ? const Icon(Icons.check_circle, color: AppColors.primaryBlue, size: 20)
-                                : const Icon(Icons.circle_outlined, color: Colors.grey, size: 20),
+                            trailing: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Checkbox(
+                                value: isSelected,
+                                activeColor: Colors.cyan,
+                                side: const BorderSide(color: Colors.cyan),
+                                onChanged: (val) {
+                                  setModalState(() {
+                                    if (isSelected) {
+                                      _selectedBranches.removeWhere((element) => element.id == b.id);
+                                    } else {
+                                      _selectedBranches.add(b);
+                                    }
+                                  });
+                                  setState(() {
+                                    _branchController.text = _selectedBranches.map((e) => e.name).join(', ');
+                                  });
+                                },
+                              ),
+                            ),
                             onTap: () {
                               setModalState(() {
                                 if (isSelected) {
@@ -288,18 +295,55 @@ class _AddUserModalState extends State<AddUserModal> {
   }
 
   void _initializeAccessList() {
-    if (widget.user != null && widget.user!.userAccess.isNotEmpty) {
-      // Map existing access
-      _accessList = _moduleNames.map((modName) {
-        final existing = widget.user!.userAccess.firstWhere(
-          (m) => m.module == modName, 
-          orElse: () => UserAccess(module: modName)
+    _branchAccessMap.clear();
+    
+    _globalAccessList = _globalModuleNames.map((modName) {
+      if (widget.user != null && widget.user!.globalAccess.isNotEmpty) {
+        final existing = widget.user!.globalAccess.firstWhere(
+          (m) => m.module == modName,
+          orElse: () => UserAccessEntry(module: modName, read: false, write: false)
         );
-        return UserAccess(module: modName, read: existing.read, write: existing.write);
-      }).toList();
-    } else {
-      _accessList = _moduleNames.map((modName) => UserAccess(module: modName)).toList();
+        return UserAccessEntry(module: modName, read: existing.read, write: existing.write);
+      }
+      
+      // Fallback for old data where 'Users' might have been inside a branch
+      if (widget.user != null && widget.user!.userAccess.isNotEmpty) {
+        bool anyRead = false;
+        bool anyWrite = false;
+        for (var b in widget.user!.userAccess) {
+          try {
+            final found = b.access.firstWhere((e) => e.module == modName);
+            if (found.read) anyRead = true;
+            if (found.write) anyWrite = true;
+          } catch (_) {}
+        }
+        if (anyRead || anyWrite) {
+          return UserAccessEntry(module: modName, read: anyRead, write: anyWrite);
+        }
+      }
+      
+      return UserAccessEntry(module: modName, read: false, write: false);
+    }).toList();
+
+    if (widget.user != null && widget.user!.userAccess.isNotEmpty) {
+      for (var branchAccess in widget.user!.userAccess) {
+        final accessList = _branchModuleNames.map((modName) {
+          final existing = branchAccess.access.firstWhere(
+            (m) => m.module == modName, 
+            orElse: () => UserAccessEntry(module: modName, read: true, write: false)
+          );
+          return UserAccessEntry(module: modName, read: existing.read, write: existing.write);
+        }).toList();
+        _branchAccessMap[branchAccess.branchId] = accessList;
+      }
     }
+  }
+
+  List<UserAccessEntry> _getAccessForBranch(int branchId) {
+    if (!_branchAccessMap.containsKey(branchId)) {
+      _branchAccessMap[branchId] = _branchModuleNames.map((modName) => UserAccessEntry(module: modName, read: true, write: false)).toList();
+    }
+    return _branchAccessMap[branchId]!;
   }
 
   String? get _displayGender {
@@ -444,6 +488,17 @@ class _AddUserModalState extends State<AddUserModal> {
   Future<void> _handleSubmit() async {
     setState(() => _hasAttemptedSubmit = true);
 
+    bool hasAnyAccess = _globalAccessList.any((a) => a.read || a.write);
+    if (!hasAnyAccess) {
+      for (var b in _selectedBranches) {
+        final bId = int.tryParse(b.id ?? '') ?? 0;
+        if (_getAccessForBranch(bId).any((a) => a.read || a.write)) {
+          hasAnyAccess = true;
+          break;
+        }
+      }
+    }
+
     if (_validateAlphabets(_nameController.text, 'name', false) != null ||
         _validateAlphabets(_lastNameController.text, 'last name', false) != null ||
         _validateRequired(_genderController.text, 'gender', true) != null ||
@@ -451,17 +506,32 @@ class _AddUserModalState extends State<AddUserModal> {
         _validatePhone(_phoneController.text) != null ||
         _validateAlphabets(_roleController.text, 'role', false) != null ||
         _validateRequired(_branchController.text, 'branch', true) != null ||
-        !_accessList.any((a) => a.read || a.write)) {
+        !hasAnyAccess) {
       return;
     }
 
     setState(() => _isLoading = true);
     
     // Only include modules that have at least read or write access
-    final activeModules = _accessList
-        .where((a) => a.read || a.write)
-        .map((a) => a.module)
-        .toList();
+    Set<String> activeModulesSet = {};
+    List<BranchAccess> finalAccess = [];
+    
+    // Add global modules if active
+    final activeGlobalAccess = _globalAccessList.where((a) => a.read || a.write).toList();
+    for (var a in activeGlobalAccess) {
+      activeModulesSet.add(a.module);
+    }
+    
+    for (var b in _selectedBranches) {
+      final bId = int.tryParse(b.id ?? '') ?? 0;
+      final activeAccessForBranch = _getAccessForBranch(bId).where((a) => a.read || a.write).toList();
+      if (activeAccessForBranch.isNotEmpty) {
+        finalAccess.add(BranchAccess(branchId: bId, branchName: b.name, access: activeAccessForBranch));
+        for (var a in activeAccessForBranch) {
+          activeModulesSet.add(a.module);
+        }
+      }
+    }
 
     final branchIds = _selectedBranches.map((b) => int.tryParse(b.id ?? '') ?? 0).toList();
     final branches = _selectedBranches.map((b) => b.name).toList();
@@ -479,8 +549,9 @@ class _AddUserModalState extends State<AddUserModal> {
       branches: branches,
       branchIds: branchIds,
       createdBy: widget.user == null ? (GoldSession.instance.userId ?? 1) : widget.user?.createdBy,
-      modules: activeModules,
-      userAccess: _accessList,
+      modules: activeModulesSet.toList(),
+      globalAccess: activeGlobalAccess,
+      userAccess: finalAccess,
     );
 
     try {
@@ -551,7 +622,7 @@ class _AddUserModalState extends State<AddUserModal> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('User Details', style: AppTextStyles.h2.copyWith(fontSize: 18)),
+                  Text('User Details', style: AppTextStyles.h2.copyWith(fontSize: 15)),
                   const SizedBox(height: 24),
                   
                   GoldDetailInputGroup(
@@ -664,83 +735,132 @@ class _AddUserModalState extends State<AddUserModal> {
                   ),
                   
                   const SizedBox(height: 32),
-                  Text('User Access', style: AppTextStyles.h2.copyWith(fontSize: 18)),
-                  const SizedBox(height: 16),
-                  
-                  // Access Table Header
-                  Row(
-                    children: [
-                      Expanded(flex: 3, child: Text('Modules', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold))),
-                      Expanded(child: Center(child: Text('Read', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold)))),
-                      Expanded(child: Center(child: Text('Write', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold)))),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Access Rows
-                  ...List.generate(_accessList.length, (index) {
-                    final item = _accessList[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Row(
+                    Text('User Access', style: AppTextStyles.h2.copyWith(fontSize: 15)),
+                    const SizedBox(height: 16),
+                    
+                    // Global Access (Users)
+                    Row(
+                      children: [
+                        Expanded(flex: 3, child: Text('Modules', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold))),
+                        Expanded(child: Center(child: Text('Write', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold)))),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ...List.generate(_globalAccessList.length, (index) {
+                      final item = _globalAccessList[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3, 
+                              child: Text(item.module, style: AppTextStyles.bodyMedium.copyWith(fontSize: 12))
+                            ),
+                            Expanded(
+                              child: Center(
+                                child: SizedBox(
+                                  width: 20, height: 20,
+                                  child: Checkbox(
+                                    value: item.write,
+                                    activeColor: Colors.cyan,
+                                    side: const BorderSide(color: Colors.cyan),
+                                    onChanged: (val) {
+                                      final newWrite = val ?? false;
+                                      setState(() => _globalAccessList[index] = UserAccessEntry(
+                                        module: item.module, read: true, write: newWrite
+                                      ));
+                                      if (_hasAttemptedSubmit) _onFieldChanged();
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                    
+                    ..._selectedBranches.expand((branch) {
+                      final bId = int.tryParse(branch.id ?? '') ?? 0;
+                      final accessList = _getAccessForBranch(bId);
+                      return [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Text(branch.name, style: AppTextStyles.h2.copyWith(fontSize: 13)),
+                      ),
+                      // Access Table Header
+                      Row(
                         children: [
-                          Expanded(
-                            flex: 3, 
-                            child: Text(item.module, style: AppTextStyles.bodyMedium.copyWith(fontSize: 12))
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: SizedBox(
-                                width: 20, height: 20,
-                                child: Checkbox(
-                                  value: item.read,
-                                  activeColor: Colors.cyan,
-                                  side: const BorderSide(color: Colors.cyan),
-                                  onChanged: (val) {
-                                    final newRead = val ?? false;
-                                    final newWrite = !newRead ? false : item.write;
-                                    setState(() => _accessList[index] = UserAccess(
-                                      module: item.module, read: newRead, write: newWrite
-                                    ));
-                                    if (_hasAttemptedSubmit) _onFieldChanged();
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Center(
-                              child: SizedBox(
-                                width: 20, height: 20,
-                                child: Checkbox(
-                                  value: item.write,
-                                  activeColor: Colors.cyan,
-                                  side: const BorderSide(color: Colors.cyan),
-                                  onChanged: (val) {
-                                    final newWrite = val ?? false;
-                                    final newRead = newWrite ? true : item.read;
-                                    setState(() => _accessList[index] = UserAccess(
-                                      module: item.module, read: newRead, write: newWrite
-                                    ));
-                                    if (_hasAttemptedSubmit) _onFieldChanged();
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
+                          Expanded(flex: 3, child: Text('Modules', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold))),
+                          Expanded(child: Center(child: Text('Write', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold)))),
                         ],
                       ),
-                    );
+                      const SizedBox(height: 16),
+                      
+                      // Access Rows
+                      ...List.generate(accessList.length, (index) {
+                        final item = accessList[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3, 
+                                child: Text(item.module, style: AppTextStyles.bodyMedium.copyWith(fontSize: 12))
+                              ),
+                              Expanded(
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 20, height: 20,
+                                    child: Checkbox(
+                                      value: item.write,
+                                      activeColor: Colors.cyan,
+                                      side: const BorderSide(color: Colors.cyan),
+                                      onChanged: (val) {
+                                        final newWrite = val ?? false;
+                                        setState(() => accessList[index] = UserAccessEntry(
+                                          module: item.module, read: true, write: newWrite
+                                        ));
+                                        if (_hasAttemptedSubmit) _onFieldChanged();
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 16),
+                    ];
                   }),
-                  if (_hasAttemptedSubmit && !_accessList.any((a) => a.read || a.write))
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        'At least one module must be selected',
-                        style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                    if (_hasAttemptedSubmit)
+                      Builder(
+                        builder: (context) {
+                          bool hasAny = _globalAccessList.any((a) => a.read || a.write);
+                          if (!hasAny) {
+                            for (var b in _selectedBranches) {
+                              final bId = int.tryParse(b.id ?? '') ?? 0;
+                              if (_getAccessForBranch(bId).any((a) => a.read || a.write)) {
+                                hasAny = true;
+                                break;
+                              }
+                            }
+                          }
+                          if (!hasAny) {
+                            return const Padding(
+                              padding: EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                'At least one module must be selected',
+                                style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
                       ),
-                    ),
-                  const SizedBox(height: 32),
+                    const SizedBox(height: 32),
                 ],
               ),
             ),

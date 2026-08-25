@@ -41,7 +41,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
 
       final response = await dio.get(url);
-      debugPrint('🔔 NOTIFICATIONS API RESPONSE: ${response.data}');
+      // debugPrint('🔔 NOTIFICATIONS API RESPONSE: ${response.data}');
       if (response.data != null && response.data['status'] == 'success') {
         setState(() {
           _notifications = response.data['data'] ?? [];
@@ -102,7 +102,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
     
     if (cleaned.isEmpty) return [];
-    return cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    return cleaned.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty && e.toLowerCase() != 'null').toList();
   }
 
   void _processFieldChange(List<String> changes, String field, String oldValStr, String newValStr, String currency) {
@@ -131,7 +131,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final removedCount = oldList.where((e) => !newList.contains(e)).length;
 
       if (addedCount > 0) {
-        changes.add('$addedCount receipt image${addedCount > 1 ? 's' : ''} updated');
+        changes.add('$addedCount receipt image${addedCount > 1 ? 's' : ''} added');
       }
       if (removedCount > 0) {
         changes.add('$removedCount receipt image${removedCount > 1 ? 's' : ''} removed');
