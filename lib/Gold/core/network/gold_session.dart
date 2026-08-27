@@ -244,8 +244,7 @@ class GoldSession {
       debugPrint('║   companyType : $companyType');
       debugPrint('║   companyName : $companyName');
       debugPrint('║   userRole    : $userRole');
-      debugPrint('║   userAccess  : ${_userAccess.length} branches');
-      debugPrint('║   token       : ${token.substring(0, 20)}...');
+      debugPrint('║   userAccess : ${_userAccess.length} branches');
       debugPrint('╚══════════════════════════════════════════════════════════');
     }
   }

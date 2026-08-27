@@ -70,12 +70,15 @@ class GoldDioClient {
         onResponse: (response, handler) {
           if (kDebugMode) {
             final urlStr = response.requestOptions.uri.toString();
-            // Suppress huge response logs for specific GET APIs
-            if (!urlStr.contains('/expense/all') && 
-                !urlStr.contains('/notifications') &&
-                !urlStr.contains('/users/all')) {
-              _logResponse(response);
-            }
+            if (!urlStr.contains('/expense/all') &&
+               !urlStr.contains('/notifications') &&
+               !urlStr.contains('/users/all') &&
+               !urlStr.contains('/users/login')) {
+        _logResponse(response);
+      }
+
+
+              
           }
           return handler.next(response);
         },
@@ -112,12 +115,16 @@ class GoldDioClient {
     debugPrint('║ 📤 REQUEST  $method');
     debugPrint('║ 🌐 URL     : $url');
     if (payload != null) {
-      final body = payload is Map || payload is List
-          ? const JsonEncoder.withIndent('  ').convert(payload)
-          : payload.toString();
-      debugPrint('║ 📦 PAYLOAD :');
-      for (final line in body.split('\n')) {
-        debugPrint('║   $line');
+      if (url.contains('/users/login')) {
+        debugPrint('║ 📦 PAYLOAD : [HIDDEN FOR SECURITY]');
+      } else {
+        final body = payload is Map || payload is List
+            ? const JsonEncoder.withIndent('  ').convert(payload)
+            : payload.toString();
+        debugPrint('║ 📦 PAYLOAD :');
+        for (final line in body.split('\n')) {
+          debugPrint('║   $line');
+        }
       }
     }
     debugPrint('╚══════════════════════════════════════════════════════════');

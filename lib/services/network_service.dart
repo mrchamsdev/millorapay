@@ -12,7 +12,6 @@ class ServiceWithHeader {
   ServiceWithHeader(this.url);
 
   Future<List<dynamic>> data() async {
-    print("authTokenValue network page ${MyApp.authTokenValue}");
 
     try {
       final response = await http.get( 
@@ -23,20 +22,12 @@ class ServiceWithHeader {
         },
       );
 
-      print(url);
-      print('authToken');
-      print(MyApp.authTokenValue);
-
       if (response.body.isNotEmpty) {
-        print("API RESPONSE STATUS CODE: ${response.statusCode}");
-        print("API RESPONSE BODY: ${response.body}");
         return [response.statusCode, jsonDecode(response.body)];
       } else {
-        print("Empty response body from API");
         return [response.statusCode, null];
       }
     } catch (e) {
-      print("Error in API call: $e");
       return [500, null];
     }
   }
@@ -59,9 +50,6 @@ class ServiceWithDataPost {
       body: jsonEncode(b),
     );
 
-    print(this.url);
-    print(this.b);
-    print(response.body);
 
     String data = response.body;
 
@@ -90,9 +78,6 @@ class ServiceWithDataPut {
       body: jsonEncode(b),
     );
 
-    print(this.url);
-    print(this.b);
-    print(response.body);
 
     String data = response.body;
 
@@ -122,8 +107,6 @@ class ServiceWithPutHeader {
       body: jsonEncode(body), // Send the body as JSON
     );
 
-    print(url);
-    print(response.body);
 
     String data = response.body;
 
@@ -152,8 +135,6 @@ class ServiceWithDeleteHeader {
       body: jsonEncode(body),
     );
 
-    print(url);
-    print(response.body);
 
     String data = response.body;
 
@@ -181,9 +162,6 @@ class ServiceWithDataPostAuth {
       body: jsonEncode(b),
     );
 
-    print(this.url);
-    print(this.b);
-    print(response.body);
 
     String data = response.body;
 
@@ -213,9 +191,6 @@ class ServiceWithDataDelete {
       body: jsonEncode(b),
     );
 
-    print(this.url);
-    print(this.b);
-    print(response.body);
 
     String data = response.body;
 
@@ -235,7 +210,6 @@ class ChatGetService {
   ChatGetService(this.url);
 
   Future<List<dynamic>> data() async {
-    print("authTokenValue: ${MyApp.authTokenValue}");
 
     try {
       final response = await http.get(
@@ -246,23 +220,18 @@ class ChatGetService {
         },
       );
 
-      print("GET $url");
-      print("Status Code: ${response.statusCode}");
-      print("Response Body: ${response.body}");
 
       if (response.body.isNotEmpty) {
         try {
           final decoded = jsonDecode(response.body);
           return [response.statusCode, decoded];
         } catch (e) {
-          print("JSON Decode Error: $e");
           return [response.statusCode, null];
         }
       } else {
         return [response.statusCode, null];
       }
     } catch (e) {
-      print("HTTP GET Error: $e");
       return [500, null];
     }
   }
@@ -284,9 +253,6 @@ class ChatPostService {
       body: jsonEncode(b),
     );
 
-    print(this.url);
-    print(this.b);
-    print(response.body);
 
     String data = response.body;
 
