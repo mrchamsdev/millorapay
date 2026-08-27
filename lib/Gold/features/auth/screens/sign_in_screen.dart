@@ -180,7 +180,8 @@ class _GoldSignInScreenState extends State<GoldSignInScreen> {
       } else {
         _showError(apiRes.extractMessage('Invalid email or password.'));
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('🚨 [LOGIN CRASH] Error: $e\n$stackTrace');
       if (mounted) {
         setState(() => _isLoading = false);
         _showError('Network error. Please check your connection.');

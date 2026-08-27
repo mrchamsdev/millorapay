@@ -58,11 +58,9 @@ class _SignInScreenState extends State<SignInScreen> {
         'passWord': _passwordController.text,
       };
 
-      print('Login Payload: $payload');
 
       var response = await ServiceWithDataPost(loginURL, payload).data();
 
-      print('Login Response: $response');
 
       if (mounted) {
         setState(() {
@@ -137,7 +135,6 @@ class _SignInScreenState extends State<SignInScreen> {
                 userName: userName,
                 userEmail: userEmail,
               );
-              print('Auth token stored: $authToken');
               if (userId != null) {
                 print('User ID stored: $userId');
               }

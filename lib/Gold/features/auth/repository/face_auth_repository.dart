@@ -42,7 +42,7 @@ class FaceAuthRepository {
 
       debugPrint('--- API CALL: enableFace ---');
       debugPrint('URL: $url');
-      debugPrint('Headers: Authorization: Bearer $token, device-id: $biometricDeviceId');
+      debugPrint('Headers: device-id: $biometricDeviceId');
       debugPrint('Payload: ${jsonEncode(payload)}');
       debugPrint('----------------------------');
 
@@ -119,7 +119,7 @@ class FaceAuthRepository {
 
       debugPrint('--- API CALL: enableBiometric ---');
       debugPrint('URL: $url');
-      debugPrint('Headers: Authorization: Bearer $token, device-id: $biometricDeviceId');
+      debugPrint('Headers: device-id: $biometricDeviceId');
       debugPrint('Payload: ${jsonEncode(payload)}');
       debugPrint('----------------------------');
 
