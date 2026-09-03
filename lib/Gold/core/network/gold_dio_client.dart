@@ -115,16 +115,12 @@ class GoldDioClient {
     debugPrint('║ 📤 REQUEST  $method');
     debugPrint('║ 🌐 URL     : $url');
     if (payload != null) {
-      if (url.contains('/users/login')) {
-        debugPrint('║ 📦 PAYLOAD : [HIDDEN FOR SECURITY]');
-      } else {
-        final body = payload is Map || payload is List
-            ? const JsonEncoder.withIndent('  ').convert(payload)
-            : payload.toString();
-        debugPrint('║ 📦 PAYLOAD :');
-        for (final line in body.split('\n')) {
-          debugPrint('║   $line');
-        }
+      final body = payload is Map || payload is List
+          ? const JsonEncoder.withIndent('  ').convert(payload)
+          : payload.toString();
+      debugPrint('║ 📦 PAYLOAD :');
+      for (final line in body.split('\n')) {
+        debugPrint('║   $line');
       }
     }
     debugPrint('╚══════════════════════════════════════════════════════════');

@@ -35,9 +35,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final role = GoldSession.instance.userRole?.toLowerCase();
       final userId = GoldSession.instance.userId;
 
+      final activeCompanyId = GoldSession.instance.userAccess.isNotEmpty
+          ? GoldSession.instance.userAccess.first.companyId
+          : null;
+
       String url = '/notifications';
       if (role != null && role.contains('admin')) {
         url = '/notifications/admin/$userId';
+      }
+      if (activeCompanyId != null) {
+        url += '?companyId=$activeCompanyId';
       }
 
       final response = await dio.get(url);

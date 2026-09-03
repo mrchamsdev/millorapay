@@ -158,6 +158,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                 _DetailRow(label: 'Phone', value: _formatPhoneNumber(user.phoneNumber)),
                 _DetailRow(label: 'Gender', value: user.gender ?? '—'),
                 _DetailRow(label: 'Role', value: user.role ?? '—'),
+                _buildCompanyRow(user),
                 _buildBranchRow(user),
               ],
             ),
@@ -177,25 +178,41 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                     if (user.userAccess.isNotEmpty)
                       const SizedBox(height: 12),
                   ],
-                  ...user.userAccess.map((branchAccess) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                          child: Text(
-                            branchAccess.branchName,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
+                  ...user.userAccess.expand((companyAccess) {
+                    if (companyAccess.branches.isEmpty) return <Widget>[];
+                    return [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Text(
+                          companyAccess.companyName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
                           ),
                         ),
-                        _buildAccessTable(branchAccess.access),
-                      ],
-                    );
-                  }).toList(),
+                      ),
+                      ...companyAccess.branches.map((branchAccess) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                              child: Text(
+                                branchAccess.branchName,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                            _buildAccessTable(branchAccess.access),
+                          ],
+                        );
+                      }),
+                    ];
+                  }),
                 ],
               ),
             ),
@@ -244,12 +261,85 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     );
   }
 
+  Widget _buildCompanyRow(User user) {
+    List<String> companiesToDisplay = [];
+    if (user.userAccess.isNotEmpty) {
+      final Set<String> companyNames = {};
+      for (var access in user.userAccess) {
+        if (access.companyName.isNotEmpty) {
+          companyNames.add(access.companyName);
+        }
+      }
+      companiesToDisplay = companyNames.toList();
+    }
+
+    if (companiesToDisplay.isEmpty) {
+      return const _DetailRow(label: 'Company', value: '—');
+    }
+
+    if (companiesToDisplay.length == 1) {
+      return _DetailRow(label: 'Company', value: companiesToDisplay.first);
+    }
+
+    final companiesStr = companiesToDisplay.join(', ');
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(
+                width: 110,
+                child: Text('Companies', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Text(
+                      companiesStr,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, thickness: 1, color: AppColors.divider, indent: 16, endIndent: 16),
+      ],
+    );
+  }
+
   Widget _buildBranchRow(User user) {
     List<String> branchesToDisplay = [];
-    if (user.branches.isNotEmpty) {
-      branchesToDisplay = user.branches;
-    } else if (user.branch != null && user.branch!.isNotEmpty) {
-      branchesToDisplay = [user.branch!];
+    if (user.userAccess.isNotEmpty) {
+      final Set<String> branchNames = {};
+      for (var companyAccess in user.userAccess) {
+        for (var branch in companyAccess.branches) {
+          if (branch.branchName.isNotEmpty) {
+            branchNames.add(branch.branchName);
+          }
+        }
+      }
+      branchesToDisplay = branchNames.toList();
+    }
+    
+    // Fallback just in case userAccess is empty but old fields are populated
+    if (branchesToDisplay.isEmpty) {
+      if (user.branches.isNotEmpty) {
+        branchesToDisplay = user.branches;
+      } else if (user.branch != null && user.branch!.isNotEmpty) {
+        branchesToDisplay = [user.branch!];
+      }
     }
 
     if (branchesToDisplay.isEmpty) {

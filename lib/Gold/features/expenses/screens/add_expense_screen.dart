@@ -348,15 +348,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   Future<void> _fetchBranches() async {
     setState(() => _isLoadingBranches = true);
     try {
-      final list = await _branchRepository.getAllBranches();
+      final topCompany = GoldSession.instance.userAccess.isNotEmpty ? GoldSession.instance.userAccess.first : null;
+      final topCompanyId = topCompany?.companyId;
+      
+      final list = await _branchRepository.getAllBranches(companyId: topCompanyId);
       if (mounted) {
         setState(() {
+          final topCompanyBranchIds = topCompany?.branches.map((b) => b.branchId).toSet() ?? {};
+
           if (GoldSession.instance.userRole?.toLowerCase().contains('admin') == true) {
-            _branches = list;
+            _branches = list.where((b) {
+              final bId = int.tryParse(b.id ?? '') ?? 0;
+              return topCompanyBranchIds.contains(bId);
+            }).toList();
           } else {
             _branches = list.where((b) {
               final bId = int.tryParse(b.id ?? '') ?? 0;
-              return GoldSession.instance.canWrite('Expenses', branchId: bId);
+              return topCompanyBranchIds.contains(bId) && GoldSession.instance.canWrite('Expenses', branchId: bId);
             }).toList();
           }
           _isLoadingBranches = false;
@@ -854,7 +862,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       } else {
         savedExpense = await _repository.createExpense(
           expenseCategoryId: _selectedCategory!.id!,
-          companyId: 1,
+          companyId: GoldSession.instance.userAccess.isNotEmpty 
+              ? GoldSession.instance.userAccess.first.companyId! 
+              : 1,
           expenseDate: dateStr,
           amount: amount,
           amountType: _selectedCurrency,

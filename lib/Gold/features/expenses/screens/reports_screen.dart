@@ -66,12 +66,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _isLoadingExpenses = true;
     });
 
+    final topCompany = GoldSession.instance.userAccess.isNotEmpty ? GoldSession.instance.userAccess.first : null;
+    final topCompanyId = topCompany?.companyId;
+
     try {
-      final allBranches = await _branchRepository.getAllBranches();
+      final topCompanyBranchIds = topCompany?.branches.map((b) => b.branchId).toSet() ?? {};
+      final allBranches = await _branchRepository.getAllBranches(companyId: topCompanyId);
       final allowedBranchIds = GoldSession.instance.getBranchIdsForReports('Expenses');
       final filteredBranches = allowedBranchIds == null
-          ? allBranches
-          : allBranches.where((b) => allowedBranchIds.contains(int.tryParse(b.id ?? ''))).toList();
+          ? allBranches.where((b) => topCompanyBranchIds.contains(int.tryParse(b.id ?? ''))).toList()
+          : allBranches.where((b) {
+              final bId = int.tryParse(b.id ?? '');
+              return topCompanyBranchIds.contains(bId) && allowedBranchIds.contains(bId);
+            }).toList();
       if (mounted) setState(() => _branches = filteredBranches);
     } catch (_) {} finally {
       if (mounted) setState(() => _isLoadingBranches = false);
@@ -85,7 +92,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
 
     try {
-      final expenseGroups = await _expenseRepository.getAllExpenses();
+      final expenseGroups = await _expenseRepository.getAllExpenses(companyId: topCompanyId);
       final allExp = expenseGroups.expand((g) => g.records).toList();
       if (mounted) {
         setState(() {
@@ -108,6 +115,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     var filtered = _allExpenses.where((e) => e.branch?.id == _selectedBranch!.id);
     if (_selectedUser != null) {
       filtered = filtered.where((e) => e.paidByUser?.id == _selectedUser!.id);
+    }
+    if (_selectedCategory != null) {
+      filtered = filtered.where((e) => e.expenseCategoryId == _selectedCategory!.id);
     }
     
     final currencies = filtered.map((e) => e.amountType).toSet().toList();
@@ -204,6 +214,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           allExpenses: _allExpenses,
           selectedBranch: _selectedBranch,
           selectedUser: _selectedUser,
+          selectedCategory: _selectedCategory,
           isLoading: _isLoadingUsers,
           onSelected: (user) {
             setState(() {
@@ -730,7 +741,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
       }
 
+      final topCompanyId = GoldSession.instance.userAccess.isNotEmpty 
+          ? GoldSession.instance.userAccess.first.companyId 
+          : 1;
+
       final filePath = await _expenseRepository.downloadReport(
+        companyId: topCompanyId!,
         branchId: _selectedBranch!.id!,
         fileType: fileType,
         reportType: reportType,

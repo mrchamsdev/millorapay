@@ -78,20 +78,29 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
         } catch (_) {}
       }
 
+      final topCompany = GoldSession.instance.userAccess.isNotEmpty ? GoldSession.instance.userAccess.first : null;
+      final topCompanyId = topCompany?.companyId;
+      final selectedBranchId = _selectedBranch != null ? int.tryParse(_selectedBranch!.id ?? '') : null;
+
       final results = await Future.wait([
-        _repository.getAllExpenses(),
+        _repository.getAllExpenses(companyId: topCompanyId, branchId: selectedBranchId),
         _branchRepository.getAllBranches(),
       ]);
       setState(() {
         _monthGroups = results[0] as List<ExpenseMonthGroup>;
         final loadedBranches = results[1] as List<Branch>;
         
+        final topCompanyBranchIds = topCompany?.branches.map((b) => b.branchId).toSet() ?? {};
+
         if (GoldSession.instance.userRole?.toLowerCase().contains('admin') == true) {
-          _branches = loadedBranches;
+          _branches = loadedBranches.where((b) {
+            final bId = int.tryParse(b.id ?? '') ?? 0;
+            return topCompanyBranchIds.contains(bId);
+          }).toList();
         } else {
           _branches = loadedBranches.where((b) {
             final bId = int.tryParse(b.id ?? '') ?? 0;
-            return GoldSession.instance.canRead('Expenses', branchId: bId);
+            return topCompanyBranchIds.contains(bId) && GoldSession.instance.canRead('Expenses', branchId: bId);
           }).toList();
         }
         _isLoading = false;
@@ -188,10 +197,10 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
 
                             return GestureDetector(
                               onTap: () {
-                                setState(() {
-                                  _selectedBranch = branch;
-                                });
-                                filterExpenses(_searchController.text);
+                                  setState(() {
+                                    _selectedBranch = branch;
+                                  });
+                                  _fetchExpenses();
                               },
                               child: Padding(
                                 padding: EdgeInsets.only(right: 6.w),
@@ -229,38 +238,6 @@ class ExpensesScreenState extends State<ExpensesScreen> with RouteAware {
                           },
                         ),
                       ),
-                    ),
-                    SizedBox(width: 4.w),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.pushNamed(context, AppRoutes.reports);
-                            },
-                            child: SvgPicture.asset(
-                              'assets/images/Excel.svg',
-                              width: 8.w,
-                              height: 8.w,
-                            ),
-                          ),
-                          SizedBox(width: 4.w),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const ChartsScreen()),
-                            );
-                          },
-                          child: SvgPicture.asset(
-                            'assets/images/Pie.svg',
-                            width: 8.w,
-                            height: 8.w,
-                          ),
-                        ),
-                        SizedBox(width: 4.w),
-                      ],
                     ),
             ],
           ),

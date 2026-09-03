@@ -26,6 +26,7 @@ class AppRoutes {
   static const String currencyPicker = '/currency-picker';
   static const String addNote        = '/add-note';
   static const String reports        = '/reports';
+  static const String charts         = '/charts';
 
   // ── Gold ──────────────────────────────────────────────────────────────────
   static const String gold           = '/gold';
