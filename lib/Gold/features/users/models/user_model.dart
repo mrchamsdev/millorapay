@@ -18,7 +18,7 @@ class User {
   final int? createdBy;
   final List<String> modules;
   final List<UserAccessEntry> globalAccess;
-  final List<BranchAccess> userAccess;
+  final List<CompanyAccess> userAccess;
 
   User({
     this.id,
@@ -113,13 +113,10 @@ class User {
               .toList()
           : [],
       userAccess: json['userAccess'] != null && json['userAccess'] is Map
-          ? (json['userAccess']['branches'] as List? ?? [])
-              .map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
+          ? (json['userAccess']['companies'] as List? ?? [])
+              .map((e) => CompanyAccess.fromJson(Map<String, dynamic>.from(e)))
               .toList()
-          : (json['userAccess'] as List?)
-                  ?.map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
-                  .toList() ??
-              [],
+          : [],
     );
   }
 
@@ -131,12 +128,13 @@ class User {
         if (phoneNumber != null) 'phoneNumber': phoneNumber,
         if (role != null) 'role': role,
         if (branchIds.isNotEmpty) 'branchId': branchIds else if (branchId != null) 'branchId': branchId,
+        if (userAccess.isNotEmpty) 'companyId': userAccess.map((e) => e.companyId).toList(),
         if (gender != null) 'gender': gender,
         if (createdBy != null) 'createdBy': createdBy,
         'modules': modules,
         'userAccess': {
           'globalAccess': globalAccess.map((e) => e.toJson()).toList(),
-          'branches': userAccess.map((e) => e.toJson()).toList(),
+          'companies': userAccess.map((e) => e.toJson()).toList(),
         },
       };
 }

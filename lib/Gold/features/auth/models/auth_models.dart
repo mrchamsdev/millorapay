@@ -155,6 +155,37 @@ class BranchAccess {
       };
 }
 
+class CompanyAccess {
+  final int companyId;
+  final String companyName;
+  final List<BranchAccess> branches;
+
+  const CompanyAccess({
+    required this.companyId,
+    required this.companyName,
+    required this.branches,
+  });
+
+  factory CompanyAccess.fromJson(Map<String, dynamic> json) {
+    return CompanyAccess(
+      companyId: json['companyId'] is int
+          ? json['companyId'] as int
+          : int.tryParse(json['companyId']?.toString() ?? '') ?? 0,
+      companyName: json['companyName']?.toString() ?? '',
+      branches: (json['branches'] as List? ?? [])
+          .whereType<Map>()
+          .map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'companyId': companyId,
+        'companyName': companyName,
+        'branches': branches.map((e) => e.toJson()).toList(),
+      };
+}
+
 class LoginResponse {
   final String? token;        // root-level JWT — used for Bearer auth
   final int?    userId;
@@ -167,7 +198,7 @@ class LoginResponse {
   final String? passwordChangedDate; // ISO-8601 from API
   final String? role;
   final List<UserAccessEntry> globalAccess;
-  final List<BranchAccess> userAccess;
+  final List<CompanyAccess> userAccess;
 
   const LoginResponse({
     this.token,
@@ -199,7 +230,7 @@ class LoginResponse {
 
     // Parse userAccess object (globalAccess and branches)
     List<UserAccessEntry> globalList = [];
-    List<BranchAccess> accessList = [];
+    List<CompanyAccess> accessList = [];
     
     if (userMap['userAccess'] is Map) {
       final accessMap = userMap['userAccess'] as Map;
@@ -207,16 +238,13 @@ class LoginResponse {
           .whereType<Map>()
           .map((e) => UserAccessEntry.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      accessList = (accessMap['branches'] as List? ?? [])
+      accessList = (accessMap['companies'] as List? ?? [])
           .whereType<Map>()
-          .map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
+          .map((e) => CompanyAccess.fromJson(Map<String, dynamic>.from(e)))
           .toList();
     } else if (userMap['userAccess'] is List) {
       // Fallback for old format
-      accessList = (userMap['userAccess'] as List? ?? [])
-          .whereType<Map>()
-          .map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+      accessList = [];
     }
 
     return LoginResponse(

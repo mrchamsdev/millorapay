@@ -11,11 +11,19 @@ class ExpenseRepository {
 
   /// Fetch all expenses grouped by month
   /// GET /api/expense/all
-  Future<List<ExpenseMonthGroup>> getAllExpenses() async {
+  Future<List<ExpenseMonthGroup>> getAllExpenses({int? companyId, int? branchId}) async {
     try {
       const url = '/expense/all';
-      if (kDebugMode) debugPrint('🌐 GET ALL EXPENSES: $url');
-      final response = await _dio.get(url);
+      
+      Map<String, dynamic> queryParams = {};
+      if (companyId != null) queryParams['companyId'] = companyId;
+      if (branchId != null) queryParams['branchId'] = branchId;
+
+      if (kDebugMode) debugPrint('🌐 GET ALL EXPENSES: $url - params: $queryParams');
+      final response = await _dio.get(
+        url,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
       
       if (response.statusCode == 200 && response.data['status'] == 'success') {
         final List data = response.data['data'] ?? [];
@@ -29,10 +37,10 @@ class ExpenseRepository {
   }
 
   /// Fetch a single expense by ID
-  /// GET /api/expense/:id
+  /// GET /api/expense/single/:id
   Future<Expense?> getExpenseById(int id) async {
     try {
-      final url = '/expense/$id';
+      final url = '/expense/single/$id';
       if (kDebugMode) debugPrint('🌐 GET EXPENSE BY ID: $url');
       final response = await _dio.get(url);
       
@@ -310,6 +318,7 @@ class ExpenseRepository {
   /// Download Report (PDF or Excel)
   /// GET /api/expense/report/download
   Future<String?> downloadReport({
+    required int companyId,
     required String branchId,
     required String fileType,
     required String reportType,
@@ -321,7 +330,8 @@ class ExpenseRepository {
   }) async {
     try {
       const url = '/expense/report/download';
-      final queryParams = {
+      final Map<String, dynamic> queryParams = {
+        'companyId': companyId,
         'branchId': branchId,
         'fileType': fileType,
         'reportType': reportType,

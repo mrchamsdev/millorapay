@@ -16,6 +16,7 @@ import '../../features/expenses/screens/category_picker_screen.dart';
 import '../../features/expenses/screens/add_note_screen.dart';
 import '../../features/expenses/screens/currency_picker_screen.dart';
 import '../../features/expenses/screens/reports_screen.dart';
+import '../../features/expenses/screens/charts_screen.dart';
 import '../../features/expenses/models/expense_model.dart';
 import '../../features/gold/screens/gold_details_screen.dart';
 import '../../features/gold/screens/add_gold_purchase_screen.dart';
@@ -78,8 +79,25 @@ class AppRouter {
         return _slide(const UsersScreen());
 
       case AppRoutes.userDetails:
-        final user = settings.arguments as User;
-        return _slide(UserDetailsScreen(userId: user.id!, userName: user.name));
+        int userId;
+        String? userName;
+
+        if (settings.arguments is User) {
+          final user = settings.arguments as User;
+          userId = user.id!;
+          userName = user.name;
+        } else if (settings.arguments is Map) {
+          final args = settings.arguments as Map;
+          userId = args['id'] as int;
+          userName = args['userName'] as String?;
+        } else {
+          throw ArgumentError('Invalid arguments for userDetails route');
+        }
+
+        return _slide(UserDetailsScreen(
+          userId: userId, 
+          userName: userName,
+        ));
 
       // ── Main Tabs (not pushed directly usually) ───────────────────────────────────────────────────
       case AppRoutes.mainNavigation:
@@ -104,6 +122,9 @@ class AppRouter {
 
       case AppRoutes.reports:
         return _slide(const ReportsScreen());
+
+      case AppRoutes.charts:
+        return _slide(const ChartsScreen());
 
       case AppRoutes.addNote:
         final initialData = settings.arguments as Map<String, String>?;
@@ -147,12 +168,12 @@ class AppRouter {
         return _slide(const ServicesScreen());
         
       case AppRoutes.addBranch:
-        final branch = settings.arguments as Branch?;
-        return _slide(AddBranchScreen(branchToEdit: branch));
+        final company = settings.arguments as Company?;
+        return _slide(AddBranchScreen(companyToEdit: company));
 
       case AppRoutes.branchDetails:
         final branchId = settings.arguments as String;
-        return _slide(BranchDetailsScreen(branchId: branchId));
+        return _slide(BranchDetailsScreen(companyId: branchId));
 
       // ── Unknown route ─────────────────────────────────────────────────────
       default:

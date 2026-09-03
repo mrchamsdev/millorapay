@@ -81,12 +81,19 @@ class _ChartsScreenState extends State<ChartsScreen> {
       _isLoadingExpenses = true;
     });
 
+    final topCompany = GoldSession.instance.userAccess.isNotEmpty ? GoldSession.instance.userAccess.first : null;
+    final topCompanyId = topCompany?.companyId;
+
     try {
-      final allBranches = await _branchRepository.getAllBranches();
+      final topCompanyBranchIds = topCompany?.branches.map((b) => b.branchId).toSet() ?? {};
+      final allBranches = await _branchRepository.getAllBranches(companyId: topCompanyId);
       final allowedBranchIds = GoldSession.instance.getBranchIdsForCharts('Expenses');
       final filteredBranches = allowedBranchIds == null 
-          ? allBranches 
-          : allBranches.where((b) => allowedBranchIds.contains(int.tryParse(b.id ?? ''))).toList();
+          ? allBranches.where((b) => topCompanyBranchIds.contains(int.tryParse(b.id ?? ''))).toList()
+          : allBranches.where((b) {
+              final bId = int.tryParse(b.id ?? '');
+              return topCompanyBranchIds.contains(bId) && allowedBranchIds.contains(bId);
+            }).toList();
       if (mounted) setState(() => _branches = filteredBranches);
     } catch (_) {} finally {
       if (mounted) setState(() => _isLoadingBranches = false);
@@ -100,7 +107,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
     }
 
     try {
-      final expenseGroups = await _expenseRepository.getAllExpenses();
+      final expenseGroups = await _expenseRepository.getAllExpenses(companyId: topCompanyId);
       final allExp = expenseGroups.expand((g) => g.records).toList();
       if (mounted) {
         setState(() {
@@ -123,6 +130,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
     var filtered = _allExpenses.where((e) => e.branch?.id == _selectedBranch!.id);
     if (_selectedUser != null) {
       filtered = filtered.where((e) => e.paidByUser?.id == _selectedUser!.id);
+    }
+    if (_selectedCategory != null) {
+      filtered = filtered.where((e) => e.expenseCategoryId == _selectedCategory!.id);
     }
     
     final currencies = filtered.map((e) => e.amountType).toSet().toList();
@@ -373,6 +383,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           allExpenses: _allExpenses,
           selectedBranch: _selectedBranch,
           selectedUser: _selectedUser,
+          selectedCategory: _selectedCategory,
           isLoading: _isLoadingUsers,
           onSelected: (user) {
             setState(() {
@@ -508,7 +519,12 @@ class _ChartsScreenState extends State<ChartsScreen> {
     });
 
     try {
+      final topCompanyId = GoldSession.instance.userAccess.isNotEmpty 
+          ? GoldSession.instance.userAccess.first.companyId 
+          : null;
+
       final queryParams = <String, dynamic>{
+        if (topCompanyId != null) 'companyId': topCompanyId,
         'branchId': _selectedBranch!.id,
       };
 
@@ -1489,6 +1505,7 @@ class MemberPickerBottomSheet extends StatelessWidget {
   final List<Expense> allExpenses;
   final Branch? selectedBranch;
   final User? selectedUser;
+  final ExpenseCategory? selectedCategory;
   final bool isLoading;
   final ValueChanged<User?> onSelected;
 
@@ -1498,6 +1515,7 @@ class MemberPickerBottomSheet extends StatelessWidget {
     required this.allExpenses,
     this.selectedBranch,
     this.selectedUser,
+    this.selectedCategory,
     this.isLoading = false,
     required this.onSelected,
   }) : super(key: key);
@@ -1508,7 +1526,9 @@ class MemberPickerBottomSheet extends StatelessWidget {
     if (selectedBranch != null) {
       final branchIdStr = selectedBranch!.id?.toString();
       final paidByUserIds = allExpenses
-          .where((e) => e.branch?.id == selectedBranch!.id && e.paidByUser != null)
+          .where((e) => e.branch?.id == selectedBranch!.id && 
+                        e.paidByUser != null &&
+                        (selectedCategory == null || e.expenseCategoryId == selectedCategory!.id))
           .map((e) => e.paidByUser!.id.toString())
           .toSet();
 

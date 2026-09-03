@@ -126,14 +126,17 @@ class GoldDetailInputField extends StatelessWidget {
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
                                   Flexible(
-                                    child: Text(
-                                      value ?? hint ?? '---',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF727271),
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      physics: const BouncingScrollPhysics(),
+                                      child: Text(
+                                        value ?? hint ?? '---',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF727271),
+                                        ),
                                       ),
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                   if (resolvedIcon != null) ...[

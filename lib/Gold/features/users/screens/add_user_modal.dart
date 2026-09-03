@@ -6,6 +6,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/gold_dialogs.dart';
 import '../../../widgets/gold_detail_input.dart';
 import '../../../widgets/gold_back_button.dart';
+import '../../../widgets/gold_multi_select_picker.dart';
 import '../../../core/network/gold_session.dart';
 import '../../branch/models/branch_model.dart';
 import '../../branch/repository/branch_repository.dart';
@@ -31,11 +32,15 @@ class _AddUserModalState extends State<AddUserModal> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _roleController = TextEditingController();
+  final _companyController = TextEditingController();
   final _branchController = TextEditingController();
+  
+  List<Company> _selectedCompanies = [];
+  List<Company> _companies = [];
+  bool _isLoadingCompanies = false;
   
   List<Branch> _selectedBranches = [];
   List<Branch> _branches = [];
-  bool _isLoadingBranches = false;
 
   bool _isLoading = false;
   bool _hasAttemptedSubmit = false;
@@ -83,19 +88,29 @@ class _AddUserModalState extends State<AddUserModal> {
     _emailController.addListener(_onFieldChanged);
     _phoneController.addListener(_onFieldChanged);
     _roleController.addListener(_onFieldChanged);
+    _companyController.addListener(_onFieldChanged);
     _branchController.addListener(_onFieldChanged);
     _genderController.addListener(_onFieldChanged);
 
     _initializeAccessList();
-    _fetchBranches().then((_) {
+    _fetchCompanies().then((_) {
       if (widget.user != null) {
+        if (widget.user!.userAccess.isNotEmpty) {
+           _selectedCompanies = _companies.where((c) {
+             return widget.user!.userAccess.any((ua) => 
+               ua.companyName == c.companyName || ua.companyId == c.id
+             );
+           }).toList();
+        }
+        
+        _buildBranchList();
+        
         if (widget.user!.branchIds.isNotEmpty || widget.user!.branches.isNotEmpty) {
            _selectedBranches = _branches.where((b) {
              final intId = int.tryParse(b.id ?? '');
              return widget.user!.branchIds.contains(intId) || widget.user!.branches.contains(b.name);
            }).toList();
            
-           // If we still didn't find anything but branch text exists
            if (_selectedBranches.isEmpty && widget.user!.branch != null) {
               final fallback = _branches.where((b) => b.name == widget.user!.branch).toList();
               if (fallback.isNotEmpty) {
@@ -110,6 +125,7 @@ class _AddUserModalState extends State<AddUserModal> {
         }
         
         setState(() {
+          _companyController.text = _selectedCompanies.map((c) => c.companyName).join(', ');
           _branchController.text = _selectedBranches.map((e) => e.name).join(', ');
           if (_branchController.text.isEmpty && widget.user!.branch != null) {
             _branchController.text = widget.user!.branch!;
@@ -151,145 +167,71 @@ class _AddUserModalState extends State<AddUserModal> {
     }
   }
 
-  Future<void> _fetchBranches() async {
-    setState(() => _isLoadingBranches = true);
+  Future<void> _fetchCompanies() async {
+    setState(() => _isLoadingCompanies = true);
     try {
-      final list = await _branchRepository.getAllBranches();
+      final list = await _branchRepository.getAllCompanies();
       if (mounted) {
         setState(() {
-          _branches = list;
-          _isLoadingBranches = false;
+          _companies = list;
+          _isLoadingCompanies = false;
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoadingBranches = false);
+      if (mounted) setState(() => _isLoadingCompanies = false);
     }
   }
 
-  Future<void> _showBranchPicker() async {
-    if (_branches.isEmpty && !_isLoadingBranches) {
-      await _fetchBranches();
+  void _buildBranchList() {
+    _branches.clear();
+    for (var company in _selectedCompanies) {
+      _branches.addAll(company.branches);
+    }
+    _selectedBranches.removeWhere((b) => !_branches.any((br) => br.id == b.id));
+    _branchController.text = _selectedBranches.map((e) => e.name).join(', ');
+  }
+
+  void _showBranchPicker() async {
+    if (_branches.isEmpty && _selectedCompanies.isEmpty) {
+      GoldDialogs.showSnackBar(context, 'Please select a company first.', isError: true);
+      return;
     }
 
-    if (!mounted) return;
-
-    showModalBottomSheet(
+    GoldMultiSelectPicker.show<Branch>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.7,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    child: Text(
-                      'Select Branches',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  if (_isLoadingBranches)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(
-                        child: CircularProgressIndicator(color: AppColors.primaryBlue),
-                      ),
-                    )
-                  else if (_branches.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(
-                        child: Text(
-                          'No branches found',
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
-                        ),
-                      ),
-                    )
-                  else
-                    Expanded(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: _branches.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
-                        itemBuilder: (context, index) {
-                          final b = _branches[index];
-                          final isSelected = _selectedBranches.any((element) => element.id == b.id);
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                            title: Text(
-                              b.name,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            subtitle: b.location.isNotEmpty
-                                ? Text(
-                                    b.location,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  )
-                                : null,
-                            trailing: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: Checkbox(
-                                value: isSelected,
-                                activeColor: Colors.cyan,
-                                side: const BorderSide(color: Colors.cyan),
-                                onChanged: (val) {
-                                  setModalState(() {
-                                    if (isSelected) {
-                                      _selectedBranches.removeWhere((element) => element.id == b.id);
-                                    } else {
-                                      _selectedBranches.add(b);
-                                    }
-                                  });
-                                  setState(() {
-                                    _branchController.text = _selectedBranches.map((e) => e.name).join(', ');
-                                  });
-                                },
-                              ),
-                            ),
-                            onTap: () {
-                              setModalState(() {
-                                if (isSelected) {
-                                  _selectedBranches.removeWhere((element) => element.id == b.id);
-                                } else {
-                                  _selectedBranches.add(b);
-                                }
-                              });
-                              setState(() {
-                                _branchController.text = _selectedBranches.map((e) => e.name).join(', ');
-                              });
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            );
-          },
-        );
+      title: 'Select Branches',
+      items: _branches,
+      selectedItems: _selectedBranches,
+      itemTitleBuilder: (b) => b.name,
+      itemSubtitleBuilder: (b) => b.location,
+      areItemsEqual: (a, b) => a.id == b.id,
+      onSelectionChanged: (selected) {
+        setState(() {
+          _selectedBranches = selected;
+          _branchController.text = _selectedBranches.map((e) => e.name).join(', ');
+        });
+      },
+    );
+  }
+
+  void _showCompanyPicker() {
+    if (_companies.isEmpty && !_isLoadingCompanies) {
+      _fetchCompanies().then((_) => _showCompanyPicker());
+      return;
+    }
+    GoldMultiSelectPicker.show<Company>(
+      context: context,
+      title: 'Select Companies',
+      items: _companies,
+      selectedItems: _selectedCompanies,
+      itemTitleBuilder: (c) => c.companyName ?? '',
+      areItemsEqual: (a, b) => a.id == b.id,
+      onSelectionChanged: (selected) {
+        setState(() {
+          _selectedCompanies = selected;
+          _companyController.text = _selectedCompanies.map((c) => c.companyName).join(', ');
+          _buildBranchList();
+        });
       },
     );
   }
@@ -310,12 +252,14 @@ class _AddUserModalState extends State<AddUserModal> {
       if (widget.user != null && widget.user!.userAccess.isNotEmpty) {
         bool anyRead = false;
         bool anyWrite = false;
-        for (var b in widget.user!.userAccess) {
-          try {
-            final found = b.access.firstWhere((e) => e.module == modName);
-            if (found.read) anyRead = true;
-            if (found.write) anyWrite = true;
-          } catch (_) {}
+        for (var c in widget.user!.userAccess) {
+          for (var b in c.branches) {
+            try {
+              final found = b.access.firstWhere((e) => e.module == modName);
+              if (found.read) anyRead = true;
+              if (found.write) anyWrite = true;
+            } catch (_) {}
+          }
         }
         if (anyRead || anyWrite) {
           return UserAccessEntry(module: modName, read: anyRead, write: anyWrite);
@@ -326,15 +270,17 @@ class _AddUserModalState extends State<AddUserModal> {
     }).toList();
 
     if (widget.user != null && widget.user!.userAccess.isNotEmpty) {
-      for (var branchAccess in widget.user!.userAccess) {
-        final accessList = _branchModuleNames.map((modName) {
-          final existing = branchAccess.access.firstWhere(
-            (m) => m.module == modName, 
-            orElse: () => UserAccessEntry(module: modName, read: true, write: false)
-          );
-          return UserAccessEntry(module: modName, read: existing.read, write: existing.write);
-        }).toList();
-        _branchAccessMap[branchAccess.branchId] = accessList;
+      for (var companyAccess in widget.user!.userAccess) {
+        for (var branchAccess in companyAccess.branches) {
+          final accessList = _branchModuleNames.map((modName) {
+            final existing = branchAccess.access.firstWhere(
+              (m) => m.module == modName, 
+              orElse: () => UserAccessEntry(module: modName, read: true, write: false)
+            );
+            return UserAccessEntry(module: modName, read: existing.read, write: existing.write);
+          }).toList();
+          _branchAccessMap[branchAccess.branchId] = accessList;
+        }
       }
     }
   }
@@ -441,6 +387,7 @@ class _AddUserModalState extends State<AddUserModal> {
     _emailController.removeListener(_onFieldChanged);
     _phoneController.removeListener(_onFieldChanged);
     _roleController.removeListener(_onFieldChanged);
+    _companyController.removeListener(_onFieldChanged);
     _branchController.removeListener(_onFieldChanged);
     _genderController.removeListener(_onFieldChanged);
     
@@ -450,6 +397,7 @@ class _AddUserModalState extends State<AddUserModal> {
     _emailController.dispose();
     _phoneController.dispose();
     _roleController.dispose();
+    _companyController.dispose();
     _branchController.dispose();
     super.dispose();
   }
@@ -505,6 +453,7 @@ class _AddUserModalState extends State<AddUserModal> {
         _validateEmail(_emailController.text) != null ||
         _validatePhone(_phoneController.text) != null ||
         _validateAlphabets(_roleController.text, 'role', false) != null ||
+        _validateRequired(_companyController.text, 'company', true) != null ||
         _validateRequired(_branchController.text, 'branch', true) != null ||
         !hasAnyAccess) {
       return;
@@ -514,7 +463,7 @@ class _AddUserModalState extends State<AddUserModal> {
     
     // Only include modules that have at least read or write access
     Set<String> activeModulesSet = {};
-    List<BranchAccess> finalAccess = [];
+    List<CompanyAccess> finalAccess = [];
     
     // Add global modules if active
     final activeGlobalAccess = _globalAccessList.where((a) => a.read || a.write).toList();
@@ -522,14 +471,39 @@ class _AddUserModalState extends State<AddUserModal> {
       activeModulesSet.add(a.module);
     }
     
-    for (var b in _selectedBranches) {
-      final bId = int.tryParse(b.id ?? '') ?? 0;
-      final activeAccessForBranch = _getAccessForBranch(bId).where((a) => a.read || a.write).toList();
-      if (activeAccessForBranch.isNotEmpty) {
-        finalAccess.add(BranchAccess(branchId: bId, branchName: b.name, access: activeAccessForBranch));
-        for (var a in activeAccessForBranch) {
-          activeModulesSet.add(a.module);
+    for (var company in _selectedCompanies) {
+      List<BranchAccess> companyBranches = [];
+      
+      final branchesInThisCompany = _selectedBranches.where((b) => company.branches.any((cb) => cb.id == b.id)).toList();
+
+      for (var branch in branchesInThisCompany) {
+        final bId = int.tryParse(branch.id ?? '') ?? 0;
+        final accessList = _getAccessForBranch(bId);
+        
+        List<UserAccessEntry> activeAccessForBranch = [];
+        for (var a in accessList) {
+          if (a.module == 'Expenses') {
+            activeAccessForBranch.add(UserAccessEntry(module: 'Expenses', read: true, write: a.write));
+            activeModulesSet.add('Expenses');
+          } else if (a.read || a.write) {
+            activeAccessForBranch.add(a);
+            activeModulesSet.add(a.module);
+          }
         }
+        
+        if (activeAccessForBranch.isNotEmpty) {
+          if (!companyBranches.any((cb) => cb.branchId == bId)) {
+            companyBranches.add(BranchAccess(branchId: bId, branchName: branch.name, access: activeAccessForBranch));
+          }
+        }
+      }
+      
+      if (companyBranches.isNotEmpty) {
+        finalAccess.add(CompanyAccess(
+          companyId: company.id ?? 0,
+          companyName: company.companyName ?? '',
+          branches: companyBranches,
+        ));
       }
     }
 
@@ -723,6 +697,14 @@ class _AddUserModalState extends State<AddUserModal> {
                         errorText: _hasAttemptedSubmit ? _validateAlphabets(_roleController.text, 'role', false) : null,
                       ),
                       GoldDetailInputField(
+                        label: 'Company',
+                        value: _companyController.text.isNotEmpty ? _companyController.text : null,
+                        hint: 'Select company',
+                        onTap: _showCompanyPicker,
+                        suffixIcon: Icons.keyboard_arrow_down_rounded,
+                        errorText: _hasAttemptedSubmit ? _validateRequired(_companyController.text, 'company', true) : null,
+                      ),
+                      GoldDetailInputField(
                         label: 'Branch',
                         value: _branchController.text.isNotEmpty ? _branchController.text : null,
                         hint: 'Select branch',
@@ -781,60 +763,71 @@ class _AddUserModalState extends State<AddUserModal> {
                     }),
                     const SizedBox(height: 16),
                     
-                    ..._selectedBranches.expand((branch) {
-                      final bId = int.tryParse(branch.id ?? '') ?? 0;
-                      final accessList = _getAccessForBranch(bId);
+                    ..._selectedCompanies.expand((company) {
+                      final companyBranches = _selectedBranches.where((b) => company.branches.any((cb) => cb.id == b.id)).toList();
+                      if (companyBranches.isEmpty) return <Widget>[];
+
                       return [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Text(branch.name, style: AppTextStyles.h2.copyWith(fontSize: 13)),
-                      ),
-                      // Access Table Header
-                      Row(
-                        children: [
-                          Expanded(flex: 3, child: Text('Modules', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold))),
-                          Expanded(child: Center(child: Text('Write', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold)))),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Access Rows
-                      ...List.generate(accessList.length, (index) {
-                        final item = accessList[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12.0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 3, 
-                                child: Text(item.module, style: AppTextStyles.bodyMedium.copyWith(fontSize: 12))
-                              ),
-                              Expanded(
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 20, height: 20,
-                                    child: Checkbox(
-                                      value: item.write,
-                                      activeColor: Colors.cyan,
-                                      side: const BorderSide(color: Colors.cyan),
-                                      onChanged: (val) {
-                                        final newWrite = val ?? false;
-                                        setState(() => accessList[index] = UserAccessEntry(
-                                          module: item.module, read: true, write: newWrite
-                                        ));
-                                        if (_hasAttemptedSubmit) _onFieldChanged();
-                                      },
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+                          child: Text(company.companyName ?? 'Unknown Company', style: AppTextStyles.h2.copyWith(fontSize: 14)),
+                        ),
+                        ...companyBranches.expand((branch) {
+                          final bId = int.tryParse(branch.id ?? '') ?? 0;
+                          final accessList = _getAccessForBranch(bId);
+                          return [
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12.0),
+                              child: Text(branch.name, style: AppTextStyles.h2.copyWith(fontSize: 13, color: AppColors.textSecondary)),
+                            ),
+                            // Access Table Header
+                            Row(
+                              children: [
+                                Expanded(flex: 3, child: Text('Modules', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold))),
+                                Expanded(child: Center(child: Text('Write', style: AppTextStyles.label.copyWith(fontSize: 10, fontWeight: FontWeight.bold)))),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            
+                            // Access Rows
+                            ...List.generate(accessList.length, (index) {
+                              final item = accessList[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 3, 
+                                      child: Text(item.module, style: AppTextStyles.bodyMedium.copyWith(fontSize: 12))
                                     ),
-                                  ),
+                                    Expanded(
+                                      child: Center(
+                                        child: SizedBox(
+                                          width: 20, height: 20,
+                                          child: Checkbox(
+                                            value: item.write,
+                                            activeColor: Colors.cyan,
+                                            side: const BorderSide(color: Colors.cyan),
+                                            onChanged: (val) {
+                                              final newWrite = val ?? false;
+                                              setState(() => accessList[index] = UserAccessEntry(
+                                                module: item.module, read: true, write: newWrite
+                                              ));
+                                              if (_hasAttemptedSubmit) _onFieldChanged();
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                      const SizedBox(height: 16),
-                    ];
-                  }),
+                              );
+                            }),
+                            const SizedBox(height: 8),
+                          ];
+                        }),
+                      ];
+                    }),
                     if (_hasAttemptedSubmit)
                       Builder(
                         builder: (context) {

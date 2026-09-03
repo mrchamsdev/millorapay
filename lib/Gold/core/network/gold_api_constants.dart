@@ -71,6 +71,12 @@ class GoldApiConstants {
   static String get allCustomers => '$baseUrl/customer/all';
   static String get singleCustomer => '$baseUrl/customer/single';
 
+  // ── Company ───────────────────────────────────────────────────────────────
+  static String get addCompany => '$baseUrl/company/';
+  static String get allCompanies => '$baseUrl/company/all';
+  static String singleCompany(String id) => '$baseUrl/company/$id';
+  static String deleteCompany(String id) => '$baseUrl/company/soft/$id';
+
   // ── Branches ──────────────────────────────────────────────────────────────
   static String get allBranches => '$baseUrl/branch/all';
   static String get branch => '$baseUrl/branch';

@@ -51,7 +51,6 @@ class _SignInScreenState extends State<SignInScreen> {
 
     try {
       var loginURL = '${dotenv.env['API_URL']}users/login';
-      print('Login URL: $loginURL');
 
       var payload = {
         'email': _emailController.text.trim(),

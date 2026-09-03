@@ -67,7 +67,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final canReadExpenses = GoldSession.instance.canRead('Expenses');
-    final canWriteExpenses = GoldSession.instance.canWrite('Expenses');
+    
+    // Check if the user has write access to 'Expenses' in ANY branch of the ACTIVE company
+    bool canWriteExpenses = false;
+    if (GoldSession.instance.userAccess.isNotEmpty) {
+      final activeCompany = GoldSession.instance.userAccess.first;
+      for (final branch in activeCompany.branches) {
+        if (GoldSession.instance.canWrite('Expenses', branchId: branch.branchId)) {
+          canWriteExpenses = true;
+          break;
+        }
+      }
+    }
 
     return Scaffold(
       drawer: const GoldDrawer(),
