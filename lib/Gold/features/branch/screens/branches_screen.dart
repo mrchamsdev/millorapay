@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/gold_session.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../../../widgets/gold_dialogs.dart';
-import '../../../core/network/gold_session.dart';
 import '../models/branch_model.dart';
 import '../repository/branch_repository.dart';
 import '../../users/repository/user_repository.dart';
@@ -22,13 +22,13 @@ class _BranchesScreenState extends State<BranchesScreen> {
   final TextEditingController _searchController = TextEditingController();
   
   bool _isLoading = true;
-  List<Company> _allCompanies = [];
-  List<Company> _filteredCompanies = [];
+  List<Branch> _allBranches = [];
+  List<Branch> _filteredBranches = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchCompanies();
+    _fetchBranches();
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -38,19 +38,22 @@ class _BranchesScreenState extends State<BranchesScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchCompanies() async {
+  Future<void> _fetchBranches() async {
     setState(() => _isLoading = true);
     try {
-      final data = await _repository.getAllCompanies();
+      final activeCompanyId = GoldSession.instance.userAccess.isNotEmpty
+          ? GoldSession.instance.userAccess.first.companyId
+          : null;
+      final data = await _repository.getAllBranches(companyId: activeCompanyId);
       setState(() {
-        _allCompanies = data;
-        _filteredCompanies = data;
+        _allBranches = data;
+        _filteredBranches = data;
         _isLoading = false;
       });
     } catch (_) {
       if (mounted) {
         setState(() => _isLoading = false);
-        GoldDialogs.showSnackBar(context, 'Failed to load companies', isError: true);
+        GoldDialogs.showSnackBar(context, 'Failed to load branches', isError: true);
       }
     }
   }
@@ -59,24 +62,36 @@ class _BranchesScreenState extends State<BranchesScreen> {
     final query = _searchController.text.trim().toLowerCase();
     if (query.isEmpty) {
       setState(() {
-        _filteredCompanies = _allCompanies;
+        _filteredBranches = _allBranches;
       });
       return;
     }
     setState(() {
-      _filteredCompanies = _allCompanies.where((c) {
-        final name = c.companyName?.toLowerCase() ?? '';
-        final city = c.city?.toLowerCase() ?? '';
-        return name.contains(query) || city.contains(query);
+      _filteredBranches = _allBranches.where((b) {
+        final name = b.name.toLowerCase();
+        final location = b.location.toLowerCase();
+        final sector = b.sector.toLowerCase();
+        return name.contains(query) || location.contains(query) || sector.contains(query);
       }).toList();
     });
   }
 
-  Future<void> _showDeleteConfirmation(Company company) async {
+  Future<void> _showDeleteConfirmation(Branch branch) async {
     setState(() => _isLoading = true);
     try {
       final users = await UserRepository().getAllUsers();
-      final hasUsers = users.any((u) => u.userAccess.any((ca) => ca.companyId == company.id));
+      final branchIdInt = int.tryParse(branch.id?.toString() ?? '');
+      bool hasUsers = false;
+      for (var u in users) {
+        if (u.branchId == branchIdInt || u.branchIds.contains(branchIdInt)) {
+          hasUsers = true;
+          break;
+        }
+        if (u.userAccess.any((ca) => ca.branches.any((ba) => ba.branchId == branchIdInt))) {
+          hasUsers = true;
+          break;
+        }
+      }
       
       setState(() => _isLoading = false);
 
@@ -122,8 +137,8 @@ class _BranchesScreenState extends State<BranchesScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Delete Company'),
-          content: Text('Are you sure you want to delete "${company.companyName ?? 'this company'}"?'),
+          title: const Text('Delete Branch'),
+          content: Text('Are you sure you want to delete "${branch.name}"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -138,16 +153,16 @@ class _BranchesScreenState extends State<BranchesScreen> {
       },
     );
 
-    if (confirm == true && company.id != null) {
+    if (confirm == true && branch.id != null) {
       setState(() => _isLoading = true);
-      final success = await _repository.deleteCompany(company.id!.toString()); 
+      final success = await _repository.deleteBranch(branch.id!); 
       if (success) {
-        _fetchCompanies();
+        _fetchBranches();
       } else {
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete company')),
+            const SnackBar(content: Text('Failed to delete branch')),
           );
         }
       }
@@ -161,7 +176,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
         onPressed: () async {
           final result = await Navigator.pushNamed(context, AppRoutes.addBranch);
           if (result == true) {
-            _fetchCompanies();
+            _fetchBranches();
           }
         },
         style: ElevatedButton.styleFrom(
@@ -183,7 +198,7 @@ class _BranchesScreenState extends State<BranchesScreen> {
         elevation: 0,
         leading: const GoldBackButton(),
         title: const Text(
-          'Companies',
+          'Branches',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 20,
@@ -223,49 +238,49 @@ class _BranchesScreenState extends State<BranchesScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
-                : _filteredCompanies.isEmpty
-                    ? const Center(child: Text('No companies found.'))
+                : _filteredBranches.isEmpty
+                    ? const Center(child: Text('No branches found.'))
                     : ListView.separated(
                         padding: const EdgeInsets.only(bottom: 20),
-                        itemCount: _filteredCompanies.length,
+                        itemCount: _filteredBranches.length,
                         separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
                         itemBuilder: (context, index) {
-                          final company = _filteredCompanies[index];
+                          final branch = _filteredBranches[index];
                           return ListTile(
                             onTap: () {
-                              if (company.id != null) {
-                                Navigator.pushNamed(context, AppRoutes.branchDetails, arguments: company.id!.toString());
+                              if (branch.id != null) {
+                                Navigator.pushNamed(context, AppRoutes.branchDetails, arguments: branch.id!);
                               }
                             },
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             title: Text(
-                              company.companyName ?? 'Unknown Company',
+                              branch.name,
                               style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
                             ),
                             subtitle: Text(
-                              company.city ?? 'Unknown City',
+                              branch.location.isNotEmpty ? branch.location : branch.sector,
                               style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
                             ),
                             trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
-                                          onPressed: () async {
-                                            final result = await Navigator.pushNamed(context, AppRoutes.addBranch, arguments: company);
-                                            if (result == true) {
-                                              _fetchCompanies();
-                                            }
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
-                                          onPressed: () {
-                                            _showDeleteConfirmation(company);
-                                          },
-                                        ),
-                                      ],
-                                    ),
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
+                                  onPressed: () async {
+                                    final result = await Navigator.pushNamed(context, AppRoutes.addBranch, arguments: branch);
+                                    if (result == true) {
+                                      _fetchBranches();
+                                    }
+                                  },
+                                ),
+                                IconButton(
+                                  icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
+                                  onPressed: () {
+                                    _showDeleteConfirmation(branch);
+                                  },
+                                ),
+                              ],
+                            ),
                           );
                         },
                       ),

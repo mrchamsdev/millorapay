@@ -4,9 +4,24 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/network/gold_session.dart';
+import '../../features/branch/repository/branch_repository.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
-class GoldDrawer extends StatelessWidget {
+class GoldDrawer extends StatefulWidget {
   const GoldDrawer({super.key});
+
+  @override
+  State<GoldDrawer> createState() => _GoldDrawerState();
+}
+
+class _GoldDrawerState extends State<GoldDrawer> {
+  bool _isMoreInfoExpanded = false;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   String _formatPhone(String? rawPhone) {
     if (rawPhone == null || rawPhone.isEmpty) return '';
@@ -53,7 +68,7 @@ class GoldDrawer extends StatelessWidget {
                       final companyIndex = index + 1;
                       final company = GoldSession.instance.userAccess[companyIndex];
                       return ListTile(
-                        leading: SvgPicture.asset('assets/images/Branch2.svg', width: 24, height: 24),
+                        leading: CompanyLogoAvatar(companyId: company.companyId, size: 24),
                         title: Text(
                           company.companyName,
                           style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
@@ -183,26 +198,15 @@ class GoldDrawer extends StatelessWidget {
                           Navigator.pop(context);
                           Navigator.pushNamed(
                             context,
-                            AppRoutes.branchDetails,
+                            AppRoutes.companyDetails,
                             arguments: GoldSession.instance.userAccess.first.companyId.toString(),
                           );
                         },
                         child: Row(
                           children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: const BoxDecoration(
-                                color: AppColors.modalIconBackground,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: SvgPicture.asset(
-                                  'assets/images/Branch2.svg',
-                                  width: 16,
-                                  height: 16,
-                                ),
-                              ),
+                            CompanyLogoAvatar(
+                              companyId: GoldSession.instance.userAccess.first.companyId,
+                              size: 32,
                             ),
                             const SizedBox(width: 16),
                             Text(
@@ -212,23 +216,6 @@ class GoldDrawer extends StatelessWidget {
                                 fontSize: 13,
                               ),
                             ),
-                            if (GoldSession.instance.userAccess.length > 1) ...[
-                              SizedBox(width: 12),
-                              GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () {
-                                  _openCompanySelector(context);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  child: const Icon(
-                                    Icons.edit_outlined,
-                                    size: 16,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                       ),
@@ -241,6 +228,7 @@ class GoldDrawer extends StatelessWidget {
             // Menu Items
             Expanded(
               child: ListView(
+                controller: _scrollController,
                 padding: EdgeInsets.zero,
                 children: [
                  /* _SectionHeader(title: 'App Settings', hasBackground: true),
@@ -276,11 +264,23 @@ class GoldDrawer extends StatelessWidget {
                     _DrawerItem(icon: Icons.category_outlined, title: 'Category', onTap: () => Navigator.pushNamed(context, AppRoutes.categoryManagement)),
                     _DrawerItem(
                       iconWidget: SvgPicture.asset(
-                        'assets/images/Branch2.svg', // Replace with your SVG
+                        'assets/images/Company.svg',
                         width: 16,
                         height: 16,
                       ),
                       title: 'Company',
+                      onTap: () {
+                        Navigator.pop(context); // Close Drawer
+                        Navigator.pushNamed(context, AppRoutes.companies);
+                      },
+                    ),
+                    _DrawerItem(
+                      iconWidget: SvgPicture.asset(
+                        'assets/images/Branch2.svg', // Replace with your SVG
+                        width: 16,
+                        height: 16,
+                      ),
+                      title: 'Branch',
                       onTap: () {
                         Navigator.pop(context); // Close Drawer
                         Navigator.pushNamed(context, AppRoutes.branches);
@@ -342,38 +342,89 @@ class GoldDrawer extends StatelessWidget {
                   ],
                   
                   if (GoldSession.instance.userAccess.length > 1) ...[
-                    _SectionHeader(title: 'Other Companies'),
+                    _SectionHeader(title: 'Switch'),
                     for (int i = 1; i < GoldSession.instance.userAccess.length; i++)
                       _DrawerItem(
-                        iconWidget: SvgPicture.asset(
-                          'assets/images/Branch2.svg',
-                          width: 16,
-                          height: 16,
+                        iconWidget: CompanyLogoAvatar(
+                          companyId: GoldSession.instance.userAccess[i].companyId,
+                          size: 32,
                         ),
+                        showIconBackground: false,
                         title: GoldSession.instance.userAccess[i].companyName,
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.pushNamed(
-                            context,
-                            AppRoutes.branchDetails,
-                            arguments: GoldSession.instance.userAccess[i].companyId.toString(),
-                          );
+                        onTap: () async {
+                          final selectedCompanyId = GoldSession.instance.userAccess[i].companyId;
+                          await GoldSession.instance.swapCompanyWithTop(selectedCompanyId);
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close Drawer
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              AppRoutes.mainNavigation,
+                              (route) => false,
+                            );
+                          }
                         },
                       ),
                   ],
                   
-                  _SectionHeader(title: 'More Info & Support'),
-                   _DrawerItem(
-                    icon: Icons.privacy_tip_outlined,
-                    title: 'Privacy Policy',
+                  _SectionHeader(
+                    title: 'More Info & Support',
                     onTap: () {
-                      Navigator.pop(context); // Close Drawer
-                      AppRoutes.push(context, AppRoutes.privacyPolicy);
+                      final willExpand = !_isMoreInfoExpanded;
+                      setState(() {
+                        _isMoreInfoExpanded = willExpand;
+                      });
+                      if (willExpand) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (_scrollController.hasClients) {
+                            _scrollController.animateTo(
+                              _scrollController.position.maxScrollExtent,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        });
+                      }
                     },
+                    trailing: Icon(
+                      _isMoreInfoExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 20,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                  _DrawerItem(icon: Icons.description_outlined, title: 'Terms & Conditions', onTap: () {}),
-                  _DrawerItem(icon: Icons.help_outline, title: 'Help', onTap: () {}),
-                  _DrawerItem(icon: Icons.info_outline, title: 'About', onTap: () {}),
+                  if (_isMoreInfoExpanded) ...[
+                    _DrawerItem(
+                      icon: Icons.privacy_tip_outlined,
+                      title: 'Privacy Policy',
+                      onTap: () {
+                        Navigator.pop(context); // Close Drawer
+                        AppRoutes.push(context, AppRoutes.privacyPolicy);
+                      },
+                    ),
+                    _DrawerItem(
+                      icon: Icons.description_outlined, 
+                      title: 'Terms & Conditions', 
+                      onTap: () {
+                        Navigator.pop(context); // Close Drawer
+                        AppRoutes.push(context, AppRoutes.termsConditions);
+                      },
+                    ),
+                    _DrawerItem(
+                      icon: Icons.help_outline, 
+                      title: 'Help', 
+                      onTap: () {
+                        Navigator.pop(context); // Close Drawer
+                        AppRoutes.push(context, AppRoutes.help);
+                      },
+                    ),
+                    _DrawerItem(
+                      icon: Icons.info_outline, 
+                      title: 'About', 
+                      onTap: () {
+                        Navigator.pop(context); // Close Drawer
+                        AppRoutes.push(context, AppRoutes.about);
+                      },
+                    ),
+                  ],
                   //_DrawerItem(icon: Icons.delete_outline, title: 'Trash', onTap: () {}),
                 ],
               ),
@@ -425,24 +476,45 @@ class GoldDrawer extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final bool hasBackground;
+  final VoidCallback? onTap;
+  final Widget? trailing;
 
-  const _SectionHeader({required this.title, this.hasBackground = false});
+  const _SectionHeader({
+    required this.title,
+    this.hasBackground = false,
+    this.onTap,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final content = Container(
       width: double.infinity,
       color: hasBackground ? const Color(0xFFEEEEEE) : AppColors.white,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textPrimary,
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
       ),
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        child: content,
+      );
+    }
+    return content;
   }
 }
 
@@ -498,6 +570,100 @@ class _DrawerItem extends StatelessWidget {
         ),
         const Divider(height: 1, thickness: 1, color: AppColors.divider, indent: 0, endIndent: 0),
       ],
+    );
+  }
+}
+
+class CompanyLogoAvatar extends StatefulWidget {
+  final int companyId;
+  final double size;
+
+  const CompanyLogoAvatar({
+    super.key,
+    required this.companyId,
+    this.size = 32,
+  });
+
+  @override
+  State<CompanyLogoAvatar> createState() => _CompanyLogoAvatarState();
+}
+
+class _CompanyLogoAvatarState extends State<CompanyLogoAvatar> {
+  static final Map<int, String?> _logoCache = {};
+  String? _logoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLogo();
+  }
+
+  @override
+  void didUpdateWidget(covariant CompanyLogoAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.companyId != widget.companyId) {
+      _loadLogo();
+    }
+  }
+
+  Future<void> _loadLogo() async {
+    if (_logoCache.containsKey(widget.companyId)) {
+      if (mounted) {
+        setState(() {
+          _logoUrl = _logoCache[widget.companyId];
+        });
+      }
+      return;
+    }
+
+    try {
+      final company = await BranchRepository().getCompanyById(widget.companyId.toString());
+      final logo = company?.logo;
+      _logoCache[widget.companyId] = logo;
+      if (mounted) {
+        setState(() {
+          _logoUrl = logo;
+        });
+      }
+    } catch (_) {
+      // Gracefully fall back to default icon
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLogo = _logoUrl != null && _logoUrl!.trim().isNotEmpty;
+    const radius = 6.0;
+
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        color: Colors.grey.shade200,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: hasLogo
+            ? Image.network(
+                Uri.encodeFull(_logoUrl!.trim()),
+                width: widget.size,
+                height: widget.size,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _buildFallbackContent(),
+              )
+            : _buildFallbackContent(),
+      ),
+    );
+  }
+
+  Widget _buildFallbackContent() {
+    return Center(
+      child: SvgPicture.asset(
+        'assets/images/Company.svg',
+        width: widget.size * 0.5,
+        height: widget.size * 0.5,
+      ),
     );
   }
 }
