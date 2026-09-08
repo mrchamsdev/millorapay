@@ -45,15 +45,20 @@ class AppRoutes {
   static const String faceId         = '/face-id';
   static const String changePassword = '/change-password';
   static const String privacyPolicy  = '/privacy-policy';
+  static const String termsConditions = '/terms-conditions';
+  static const String help           = '/help';
+  static const String about          = '/about';
 
   // ── Customers ─────────────────────────────────────────────────────────────
   static const String customers       = '/customers';
   static const String customerDetails = '/customer-details';
 
-  // ── Branches ──────────────────────────────────────────────────────────────
+  // ── Branches & Companies ──────────────────────────────────────────────────
+  static const String companies       = '/companies';
   static const String branches        = '/branches';
   static const String addBranch       = '/add-branch';
   static const String branchDetails   = '/branch-details';
+  static const String companyDetails  = '/company-details';
 
   // ── Units ─────────────────────────────────────────────────────────────────
   static const String units           = '/units';

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import '../../../core/network/gold_network_service.dart';
-import '../../../core/network/gold_api_constants.dart';
+import '../../../core/network/gold_session.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../../../widgets/gold_dialogs.dart';
@@ -30,8 +28,9 @@ class _BranchFormBlock {
 
 class AddBranchScreen extends StatefulWidget {
   final Company? companyToEdit;
+  final Branch? branchToEdit;
 
-  const AddBranchScreen({super.key, this.companyToEdit});
+  const AddBranchScreen({super.key, this.companyToEdit, this.branchToEdit});
 
   @override
   State<AddBranchScreen> createState() => _AddBranchScreenState();
@@ -47,7 +46,16 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
   void initState() {
     super.initState();
     _blocks.add(_BranchFormBlock());
-    if (widget.companyToEdit != null) {
+    if (widget.branchToEdit != null) {
+      final b = widget.branchToEdit!;
+      _blocks[0].branchId = b.id;
+      _blocks[0].nameCtrl.text = b.name;
+      _blocks[0].sectorCtrl.text = b.sector;
+      _blocks[0].locationCtrl.text = b.location;
+      _blocks[0].radiusCtrl.text = b.radius != null ? b.radius.toString() : '';
+      _blocks[0].latitudeCtrl.text = b.latitude != null ? b.latitude.toString() : '';
+      _blocks[0].longitudeCtrl.text = b.longitude != null ? b.longitude.toString() : '';
+    } else if (widget.companyToEdit != null) {
       final c = widget.companyToEdit!;
       _blocks[0].nameCtrl.text = c.companyName ?? '';
       _blocks[0].sectorCtrl.text = c.sector ?? '';
@@ -62,9 +70,9 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
         block.nameCtrl.text = branch.name;
         block.sectorCtrl.text = branch.sector;
         block.locationCtrl.text = branch.location;
-        block.radiusCtrl.text = branch.radius.toString();
-        block.latitudeCtrl.text = branch.latitude.toString();
-        block.longitudeCtrl.text = branch.longitude.toString();
+        block.radiusCtrl.text = branch.radius != null ? branch.radius.toString() : '';
+        block.latitudeCtrl.text = branch.latitude != null ? branch.latitude.toString() : '';
+        block.longitudeCtrl.text = branch.longitude != null ? branch.longitude.toString() : '';
         _blocks.add(block);
       }
     }
@@ -78,96 +86,54 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     super.dispose();
   }
 
-  void _addBranchBlock() {
-    setState(() {
-      _blocks.add(_BranchFormBlock());
-    });
-  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     
     setState(() => _isSubmitting = true);
     
-    bool allSuccess = true;
-    int? currentCompanyId = widget.companyToEdit?.id;
-    
     if (_blocks.isEmpty) {
       setState(() => _isSubmitting = false);
       return;
     }
 
-    final companyBlock = _blocks[0];
-    final companyPayload = <String, dynamic>{
-      "companyName": companyBlock.nameCtrl.text.trim(),
-      "legalEntityName": companyBlock.nameCtrl.text.trim(), 
-      "companyType": "Individual",
-      "sector": companyBlock.sectorCtrl.text.trim(),
-      "radius": num.tryParse(companyBlock.radiusCtrl.text.trim()) ?? 0,
-      "latitude": num.tryParse(companyBlock.latitudeCtrl.text.trim()) ?? 0,
-      "longitude": num.tryParse(companyBlock.longitudeCtrl.text.trim()) ?? 0,
-    };
-
-    if (companyBlock.locationCtrl.text.trim().isNotEmpty) {
-      companyPayload["city"] = companyBlock.locationCtrl.text.trim();
+    int? activeCompanyId = widget.companyToEdit?.id ?? widget.branchToEdit?.companyId;
+    if (activeCompanyId == null && GoldSession.instance.userAccess.isNotEmpty) {
+      activeCompanyId = GoldSession.instance.userAccess.first.companyId;
     }
-    
-    if (widget.companyToEdit != null && widget.companyToEdit!.id != null) {
-      // UPDATE existing company
-      final success = await BranchRepository().updateCompany(widget.companyToEdit!.id!.toString(), companyPayload);
-      if (!success) allSuccess = false;
-    } else {
-      // CREATE new company
-      final service = GoldPostAuthService(GoldApiConstants.addCompany, companyPayload);
-      final result = await service.data();
-      final statusCode = result[0] as int;
-      final data = result[1];
-      
-      if (statusCode >= 200 && statusCode < 300) {
-        try {
-          dynamic decodedData = data is String ? jsonDecode(data) : data;
-          if (decodedData is Map) {
-             var id = decodedData['companyId'] ?? decodedData['id'] ?? decodedData['company_id'];
-             if (id == null && decodedData['data'] is Map) {
-               id = decodedData['data']['companyId'] ?? decodedData['data']['id'] ?? decodedData['data']['company_id'];
-             }
-             if (id is int) {
-               currentCompanyId = id;
-             } else if (id != null) {
-               currentCompanyId = int.tryParse(id.toString());
-             }
-          }
-        } catch (_) {}
-      } else {
-        allSuccess = false;
+
+    if (activeCompanyId == null) {
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        GoldDialogs.showSnackBar(context, 'No active company found.', isError: true);
       }
+      return;
     }
-    
-    if (allSuccess) {
-      // Process branches (starting from index 1)
-      for (int i = 1; i < _blocks.length; i++) {
-        final block = _blocks[i];
-        final branch = Branch(
-          id: block.branchId, // Use the stored branch ID to determine if it's existing or new
-          companyId: currentCompanyId,
-          name: block.nameCtrl.text.trim(),
-          sector: block.sectorCtrl.text.trim(),
-          location: block.locationCtrl.text.trim(),
-          radius: num.tryParse(block.radiusCtrl.text.trim()) ?? 0,
-          latitude: num.tryParse(block.latitudeCtrl.text.trim()) ?? 0,
-          longitude: num.tryParse(block.longitudeCtrl.text.trim()) ?? 0,
-        );
 
-        bool success;
-        if (block.branchId != null) {
-          success = await BranchRepository().updateBranch(block.branchId!, branch);
-        } else {
-          success = await BranchRepository().addBranch(branch);
-        }
-        
-        if (!success) {
-          allSuccess = false;
-        }
+    bool allSuccess = true;
+
+    for (int i = 0; i < _blocks.length; i++) {
+      final block = _blocks[i];
+      final branch = Branch(
+        id: block.branchId,
+        companyId: activeCompanyId,
+        name: block.nameCtrl.text.trim(),
+        sector: block.sectorCtrl.text.trim(),
+        location: block.locationCtrl.text.trim(),
+        radius: num.tryParse(block.radiusCtrl.text.trim()),
+        latitude: num.tryParse(block.latitudeCtrl.text.trim()),
+        longitude: num.tryParse(block.longitudeCtrl.text.trim()),
+      );
+
+      bool success;
+      if (block.branchId != null) {
+        success = await BranchRepository().updateBranch(block.branchId!, branch);
+      } else {
+        success = await BranchRepository().addBranch(branch);
+      }
+      
+      if (!success) {
+        allSuccess = false;
       }
     }
     
@@ -178,7 +144,7 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     } else if (mounted) {
       GoldDialogs.showSnackBar(
         context,
-        widget.companyToEdit != null ? 'Failed to update successfully' : 'Failed to save completely',
+        widget.companyToEdit != null ? 'Failed to update branch' : 'Failed to save branch',
         isError: true,
       );
     }
@@ -254,7 +220,7 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
         elevation: 0,
         leading: const GoldBackButton(),
         title: Text(
-          widget.companyToEdit != null ? 'Edit Company' : 'Add Company',
+          (widget.companyToEdit != null || widget.branchToEdit != null) ? 'Edit Branch' : 'Add Branch',
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -272,7 +238,7 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
             children: [
               ...List.generate(_blocks.length, (index) {
               final block = _blocks[index];
-              final title = index == 0 ? 'Company Details' : 'Branch Details';
+              const title = 'Branch Details';
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,18 +289,6 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
                 ],
               );
             }),
-            
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _addBranchBlock,
-                icon: const Icon(Icons.add, color: AppColors.primaryBlue, size: 20),
-                label: const Text(
-                  'Add Branch',
-                  style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
           ],
         ),
       ),

@@ -4,9 +4,9 @@ class Branch {
   final String name;
   final String sector;
   final String location;
-  final num radius;
-  final num latitude;
-  final num longitude;
+  final num? radius;
+  final num? latitude;
+  final num? longitude;
 
   Branch({
     this.id,
@@ -14,9 +14,9 @@ class Branch {
     required this.name,
     required this.sector,
     required this.location,
-    required this.radius,
-    required this.latitude,
-    required this.longitude,
+    this.radius,
+    this.latitude,
+    this.longitude,
   });
 
   factory Branch.fromJson(Map<String, dynamic> json) {
@@ -28,13 +28,13 @@ class Branch {
       location: json['location'] ?? '',
       radius: json['radius'] is num
           ? json['radius']
-          : (num.tryParse(json['radius']?.toString() ?? '0') ?? 0),
+          : num.tryParse(json['radius']?.toString() ?? ''),
       latitude: json['latitude'] is num
           ? json['latitude']
-          : (num.tryParse(json['latitude']?.toString() ?? '0') ?? 0),
+          : num.tryParse(json['latitude']?.toString() ?? ''),
       longitude: json['longitude'] is num
           ? json['longitude']
-          : (num.tryParse(json['longitude']?.toString() ?? '0') ?? 0),
+          : num.tryParse(json['longitude']?.toString() ?? ''),
     );
   }
 
@@ -45,9 +45,9 @@ class Branch {
       'name': name,
       'sector': sector,
       'location': location,
-      'radius': radius,
-      'latitude': latitude,
-      'longitude': longitude,
+      if (radius != null) 'radius': radius,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
     };
   }
 }
@@ -65,6 +65,7 @@ class Company {
   final num? radius;
   final num? latitude;
   final num? longitude;
+  final String? logo;
   final List<Branch> branches;
 
   Company({
@@ -80,6 +81,7 @@ class Company {
     this.radius,
     this.latitude,
     this.longitude,
+    this.logo,
     this.branches = const [],
   });
 
@@ -97,6 +99,7 @@ class Company {
       radius: json['radius'] is num ? json['radius'] : num.tryParse(json['radius']?.toString() ?? ''),
       latitude: json['latitude'] is num ? json['latitude'] : num.tryParse(json['latitude']?.toString() ?? ''),
       longitude: json['longitude'] is num ? json['longitude'] : num.tryParse(json['longitude']?.toString() ?? ''),
+      logo: json['logo']?.toString(),
       branches: (json['branches'] as List? ?? [])
           .whereType<Map>()
           .map((e) => Branch.fromJson(Map<String, dynamic>.from(e)))
@@ -118,6 +121,7 @@ class Company {
       if (radius != null) 'radius': radius,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
+      if (logo != null) 'logo': logo,
       'branches': branches.map((e) => e.toJson()).toList(),
     };
   }

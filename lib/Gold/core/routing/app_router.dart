@@ -29,12 +29,17 @@ import '../../features/users/models/user_model.dart';
 import '../../features/settings/screens/face_id_screen.dart';
 import '../../features/settings/screens/change_password_screen.dart';
 import '../../features/settings/screens/privacy_policy_screen.dart';
+import '../../features/settings/screens/terms_conditions_screen.dart';
+import '../../features/settings/screens/help_screen.dart';
+import '../../features/settings/screens/about_screen.dart';
 import '../../features/customer/screens/customers_screen.dart';
 import '../../features/customer/screens/customer_details_screen.dart';
 import '../../features/customer/models/customer_model.dart';
 import '../../features/branch/screens/branches_screen.dart';
+import '../../features/branch/screens/companies_screen.dart';
 import '../../features/branch/screens/add_branch_screen.dart';
 import '../../features/branch/screens/branch_details_screen.dart';
+import '../../features/branch/screens/company_details_screen.dart';
 import '../../features/branch/models/branch_model.dart';
 import '../../features/units/screens/units_screen.dart';
 import '../../features/services/screens/services_screen.dart';
@@ -151,12 +156,24 @@ class AppRouter {
       case AppRoutes.privacyPolicy:
         return _slide(const PrivacyPolicyScreen());
 
+      case AppRoutes.termsConditions:
+        return _slide(const TermsConditionsScreen());
+
+      case AppRoutes.help:
+        return _slide(const HelpScreen());
+
+      case AppRoutes.about:
+        return _slide(const AboutScreen());
+
       case AppRoutes.customers:
         return _slide(const CustomersScreen());
 
       case AppRoutes.customerDetails:
         final customer = settings.arguments as Customer;
         return _slide(CustomerDetailsScreen(customer: customer));
+
+      case AppRoutes.companies:
+        return _slide(const CompaniesScreen());
 
       case AppRoutes.branches:
         return _slide(const BranchesScreen());
@@ -168,12 +185,19 @@ class AppRouter {
         return _slide(const ServicesScreen());
         
       case AppRoutes.addBranch:
+        if (settings.arguments is Branch) {
+          return _slide(AddBranchScreen(branchToEdit: settings.arguments as Branch));
+        }
         final company = settings.arguments as Company?;
         return _slide(AddBranchScreen(companyToEdit: company));
 
       case AppRoutes.branchDetails:
         final branchId = settings.arguments as String;
-        return _slide(BranchDetailsScreen(companyId: branchId));
+        return _slide(BranchDetailsScreen(branchId: branchId));
+
+      case AppRoutes.companyDetails:
+        final companyId = settings.arguments as String;
+        return _slide(CompanyDetailsScreen(companyId: companyId));
 
       // ── Unknown route ─────────────────────────────────────────────────────
       default:

@@ -220,6 +220,20 @@ class GoldSession {
     }
   }
 
+  /// Swaps the top active company with the selected company in Other Companies
+  Future<void> swapCompanyWithTop(int companyId) async {
+    final index = _userAccess.indexWhere((c) => c.companyId == companyId);
+    if (index > 0) {
+      final temp = _userAccess[0];
+      _userAccess[0] = _userAccess[index];
+      _userAccess[index] = temp;
+
+      final accessJson = jsonEncode(_userAccess.map((e) => e.toJson()).toList());
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kUserAccess, accessJson);
+    }
+  }
+
   /// Call this immediately after a successful login.
   /// Writes all fields to memory and [SharedPreferences].
   Future<void> save({
