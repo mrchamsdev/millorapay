@@ -251,3 +251,44 @@ class GoldUploadService {
     }
   }
 }
+
+// ── Multipart file update via PUT (authenticated) ────────────────────────────
+
+/// Authenticated multipart PUT for updates with optional file upload.
+class GoldPutMultipartAuthService {
+  final String url;
+  final Map<String, dynamic> fields;
+  final String? filePath;
+  final String fileFieldName;
+
+  const GoldPutMultipartAuthService({
+    required this.url,
+    this.fields = const {},
+    this.filePath,
+    this.fileFieldName = 'logo',
+  });
+
+  Future<List<dynamic>> data() async {
+    try {
+      final map = Map<String, dynamic>.from(fields);
+      if (filePath != null && filePath!.isNotEmpty) {
+        final fileName = filePath!.split('/').last;
+        map[fileFieldName] = await MultipartFile.fromFile(filePath!, filename: fileName);
+      }
+      final formData = FormData.fromMap(map);
+      final response = await _dio.put(
+        url,
+        data: formData,
+        options: Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+        ),
+      );
+      return [response.statusCode ?? 200, response.data];
+    } on DioException catch (e) {
+      return _buildError(e, 'PUT(multipart)');
+    } catch (e) {
+      debugPrint('[PUT(multipart)] ❌ Unexpected error: $e');
+      return [500, null];
+    }
+  }
+}

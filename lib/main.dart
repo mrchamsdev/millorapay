@@ -11,6 +11,7 @@ import 'package:bank_scan/Gold/core/utils/screen_utility.dart';
 import 'package:bank_scan/Gold/features/auth/gold_welcome_screen.dart';
 import 'package:bank_scan/Gold/features/gold/screens/gold_screen.dart';
 import 'package:bank_scan/Gold/features/main/main_navigation_screen.dart';
+import 'package:bank_scan/Gold/widgets/gold_dialogs.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entry point
@@ -56,6 +57,7 @@ class GoldApp extends StatelessWidget {
       title: 'MiloraPay',
       debugShowCheckedModeBanner: false,
       navigatorKey: goldNavigatorKey, // ← enables global 401 redirect
+      scaffoldMessengerKey: GoldDialogs.scaffoldMessengerKey,
 
       // ── Gold design-token theme ───────────────────────────────────────────
       theme: ThemeData(

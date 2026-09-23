@@ -1,28 +1,39 @@
 import 'package:flutter/material.dart';
 import '../../../core/network/gold_session.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/country_utility.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../../../widgets/gold_dialogs.dart';
 import '../models/branch_model.dart';
 import '../repository/branch_repository.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:geocoding/geocoding.dart';
+import '../../../widgets/google_places_autocomplete.dart';
+import 'map_selection_screen.dart';
 
 class _BranchFormBlock {
   final TextEditingController nameCtrl = TextEditingController();
   final TextEditingController sectorCtrl = TextEditingController();
+  final TextEditingController customSectorCtrl = TextEditingController();
+  final TextEditingController countryCtrl = TextEditingController(text: 'India');
+  String selectedCountryCode = 'IN';
   final TextEditingController locationCtrl = TextEditingController();
   final TextEditingController radiusCtrl = TextEditingController();
   final TextEditingController latitudeCtrl = TextEditingController();
   final TextEditingController longitudeCtrl = TextEditingController();
+  final FocusNode locationFocusNode = FocusNode();
   String? branchId;
 
   void dispose() {
     nameCtrl.dispose();
     sectorCtrl.dispose();
+    customSectorCtrl.dispose();
+    countryCtrl.dispose();
     locationCtrl.dispose();
     radiusCtrl.dispose();
     latitudeCtrl.dispose();
     longitudeCtrl.dispose();
+    locationFocusNode.dispose();
   }
 }
 
@@ -39,18 +50,55 @@ class AddBranchScreen extends StatefulWidget {
 class _AddBranchScreenState extends State<AddBranchScreen> {
   final _formKey = GlobalKey<FormState>();
   final List<_BranchFormBlock> _blocks = [];
+  final BranchRepository _repository = BranchRepository();
+
+  List<String> _sectors = [];
+  bool _isLoadingSectors = false;
+
+  static const List<String> _defaultSectors = [
+    'Agriculture & Food',
+    'Construction',
+    'Education',
+    'Energy & Utilities',
+    'Financial Services',
+    'Healthcare',
+    'Information Technology (IT)',
+    'Manufacturing',
+    'Real Estate',
+    'Retail & Consumer Goods',
+    'Telecommunications',
+    'Transportation & Logistics',
+    'Banking',
+    'Hospitality & Tourism',
+    'Automobile',
+    'Other',
+  ];
   
   bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
+    _fetchSectors();
     _blocks.add(_BranchFormBlock());
     if (widget.branchToEdit != null) {
       final b = widget.branchToEdit!;
       _blocks[0].branchId = b.id;
       _blocks[0].nameCtrl.text = b.name;
       _blocks[0].sectorCtrl.text = b.sector;
+      if (b.country != null && b.country!.trim().isNotEmpty) {
+        _blocks[0].countryCtrl.text = b.country!.trim();
+        _blocks[0].selectedCountryCode = CountryUtility.getIsoCode(b.country!) ?? 'IN';
+      } else {
+        final detected = CountryUtility.detectCountryFromAddress(b.location);
+        if (detected != null) {
+          _blocks[0].selectedCountryCode = detected.isoCode;
+          _blocks[0].countryCtrl.text = detected.name;
+        } else {
+          _blocks[0].selectedCountryCode = 'IN';
+          _blocks[0].countryCtrl.text = 'India';
+        }
+      }
       _blocks[0].locationCtrl.text = b.location;
       _blocks[0].radiusCtrl.text = b.radius != null ? b.radius.toString() : '';
       _blocks[0].latitudeCtrl.text = b.latitude != null ? b.latitude.toString() : '';
@@ -59,6 +107,10 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
       final c = widget.companyToEdit!;
       _blocks[0].nameCtrl.text = c.companyName ?? '';
       _blocks[0].sectorCtrl.text = c.sector ?? '';
+      if (c.country != null && c.country!.trim().isNotEmpty) {
+        _blocks[0].countryCtrl.text = c.country!.trim();
+        _blocks[0].selectedCountryCode = CountryUtility.getIsoCode(c.country!) ?? 'IN';
+      }
       _blocks[0].locationCtrl.text = c.city ?? '';
       _blocks[0].radiusCtrl.text = c.radius?.toString() ?? '';
       _blocks[0].latitudeCtrl.text = c.latitude?.toString() ?? '';
@@ -69,6 +121,22 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
         block.branchId = branch.id;
         block.nameCtrl.text = branch.name;
         block.sectorCtrl.text = branch.sector;
+        if (branch.country != null && branch.country!.trim().isNotEmpty) {
+          block.countryCtrl.text = branch.country!.trim();
+          block.selectedCountryCode = CountryUtility.getIsoCode(branch.country!) ?? 'IN';
+        } else if (c.country != null && c.country!.trim().isNotEmpty) {
+          block.countryCtrl.text = c.country!.trim();
+          block.selectedCountryCode = CountryUtility.getIsoCode(c.country!) ?? 'IN';
+        } else {
+          final detected = CountryUtility.detectCountryFromAddress(branch.location);
+          if (detected != null) {
+            block.selectedCountryCode = detected.isoCode;
+            block.countryCtrl.text = detected.name;
+          } else {
+            block.selectedCountryCode = 'IN';
+            block.countryCtrl.text = 'India';
+          }
+        }
         block.locationCtrl.text = branch.location;
         block.radiusCtrl.text = branch.radius != null ? branch.radius.toString() : '';
         block.latitudeCtrl.text = branch.latitude != null ? branch.latitude.toString() : '';
@@ -86,6 +154,43 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     super.dispose();
   }
 
+  Future<void> _fetchSectors() async {
+    setState(() => _isLoadingSectors = true);
+    try {
+      final fetched = await _repository.getAllSectors();
+      if (!mounted) return;
+      setState(() {
+        final set = <String>{};
+        for (final s in fetched) {
+          if (s.trim().isNotEmpty) set.add(s.trim());
+        }
+        if (set.isEmpty) {
+          set.addAll(_defaultSectors);
+        }
+        for (final b in _blocks) {
+          if (b.sectorCtrl.text.trim().isNotEmpty) {
+            set.add(b.sectorCtrl.text.trim());
+          }
+        }
+        _sectors = set.toList();
+        _isLoadingSectors = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          if (_sectors.isEmpty) {
+            _sectors = List.from(_defaultSectors);
+            for (final b in _blocks) {
+              if (b.sectorCtrl.text.trim().isNotEmpty && !_sectors.contains(b.sectorCtrl.text.trim())) {
+                _sectors.add(b.sectorCtrl.text.trim());
+              }
+            }
+          }
+          _isLoadingSectors = false;
+        });
+      }
+    }
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -114,11 +219,27 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
 
     for (int i = 0; i < _blocks.length; i++) {
       final block = _blocks[i];
+      if ((block.latitudeCtrl.text.trim().isEmpty || block.longitudeCtrl.text.trim().isEmpty) &&
+          block.locationCtrl.text.trim().isNotEmpty) {
+        try {
+          final locs = await locationFromAddress(block.locationCtrl.text.trim());
+          if (locs.isNotEmpty) {
+            block.latitudeCtrl.text = locs.first.latitude.toString();
+            block.longitudeCtrl.text = locs.first.longitude.toString();
+          }
+        } catch (_) {}
+      }
+
+      final sectorVal = (block.sectorCtrl.text.trim() == 'Other' && block.customSectorCtrl.text.trim().isNotEmpty)
+          ? block.customSectorCtrl.text.trim()
+          : block.sectorCtrl.text.trim();
+
       final branch = Branch(
         id: block.branchId,
         companyId: activeCompanyId,
         name: block.nameCtrl.text.trim(),
-        sector: block.sectorCtrl.text.trim(),
+        sector: sectorVal,
+        country: block.countryCtrl.text.trim().isNotEmpty ? block.countryCtrl.text.trim() : null,
         location: block.locationCtrl.text.trim(),
         radius: num.tryParse(block.radiusCtrl.text.trim()),
         latitude: num.tryParse(block.latitudeCtrl.text.trim()),
@@ -211,6 +332,282 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     );
   }
 
+  Widget _buildSectorDropdownField(_BranchFormBlock block) {
+    final effectiveItems = List<String>.from(_sectors);
+    final currentVal = block.sectorCtrl.text.trim();
+    if (currentVal.isNotEmpty && !effectiveItems.contains(currentVal)) {
+      effectiveItems.insert(0, currentVal);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const SizedBox(
+              width: 100,
+              child: Text(
+                'Sector',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                key: ValueKey('${block.branchId}_${currentVal}_${effectiveItems.length}'),
+                initialValue: (currentVal.isNotEmpty && effectiveItems.contains(currentVal)) ? currentVal : null,
+                isExpanded: true,
+                hint: Text(
+                  _isLoadingSectors ? 'Loading sectors...' : 'Select Sector',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+                items: effectiveItems
+                    .map((item) => DropdownMenuItem(
+                          value: item,
+                          child: Text(
+                            item,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  setState(() {
+                    block.sectorCtrl.text = val ?? '';
+                  });
+                },
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFF1F2F5)),
+                  ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFF1F2F5)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primaryBlue, width: 1.5),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Select Sector';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+        if (block.sectorCtrl.text.trim() == 'Other') ...[
+          const SizedBox(height: 12),
+          _buildTextField('Custom Sector', block.customSectorCtrl, isRequired: true),
+        ],
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildCountryDropdownField(_BranchFormBlock block) {
+    final countries = CountryUtility.getAllCountries();
+    final currentCountryName = block.countryCtrl.text.trim();
+    final currentIso = block.selectedCountryCode.isNotEmpty
+        ? block.selectedCountryCode
+        : (CountryUtility.getIsoCode(currentCountryName) ?? 'IN');
+
+    final effectiveIso = countries.any((c) => c.isoCode.toUpperCase() == currentIso.toUpperCase())
+        ? currentIso.toUpperCase()
+        : 'IN';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const SizedBox(
+              width: 100,
+              child: Text(
+                'Country',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                key: ValueKey('${block.branchId}_country_${effectiveIso}'),
+                value: effectiveIso,
+                isExpanded: true,
+                hint: const Text(
+                  'Select Country',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+                items: countries
+                    .map((item) => DropdownMenuItem(
+                          value: item.isoCode.toUpperCase(),
+                          child: Row(
+                            children: [
+                              if (item.flagEmoji != null && item.flagEmoji!.isNotEmpty) ...[
+                                Text(item.flagEmoji!, style: const TextStyle(fontSize: 15)),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  item.name,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  if (val == null) return;
+                  final selected = CountryUtility.findCountry(val);
+                  setState(() {
+                    block.selectedCountryCode = val;
+                    block.countryCtrl.text = selected?.name ?? val;
+                  });
+                },
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFF1F2F5)),
+                  ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFFF1F2F5)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primaryBlue, width: 1.5),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Select Country';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildLocationField(_BranchFormBlock block) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 100,
+              child: Text(
+                'Location',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: GooglePlacesAutocompleteWidget(
+                key: ValueKey('places_${block.branchId}_${block.selectedCountryCode}'),
+                controller: block.locationCtrl,
+                focusNode: block.locationFocusNode,
+                countryCode: block.selectedCountryCode,
+                hintText: 'Enter Location',
+                suffixIcon: IconButton(
+                  tooltip: 'Pick on Map',
+                  icon: const Icon(
+                    Icons.location_on,
+                    color: AppColors.primaryBlue,
+                    size: 22,
+                  ),
+                  onPressed: () async {
+                    final double? lat = double.tryParse(block.latitudeCtrl.text.trim());
+                    final double? lng = double.tryParse(block.longitudeCtrl.text.trim());
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MapSelectionScreen(
+                          initialLatitude: lat,
+                          initialLongitude: lng,
+                          initialLocation: block.locationCtrl.text.trim(),
+                          countryCode: block.selectedCountryCode,
+                        ),
+                      ),
+                    );
+
+                    if (result is Map) {
+                      setState(() {
+                        if (result['location'] != null && result['location'].toString().isNotEmpty) {
+                          block.locationCtrl.text = result['location'].toString();
+                        }
+                        if (result['latitude'] != null) {
+                          block.latitudeCtrl.text = result['latitude'].toString();
+                        }
+                        if (result['longitude'] != null) {
+                          block.longitudeCtrl.text = result['longitude'].toString();
+                        }
+                      });
+                    }
+                  },
+                ),
+                onPlaceSelected: (data) {
+                  setState(() {
+                    if (data['location'] != null && data['location'].toString().isNotEmpty) {
+                      block.locationCtrl.text = data['location'].toString();
+                    }
+                    if (data['latitude'] != null && data['latitude'].toString().isNotEmpty) {
+                      block.latitudeCtrl.text = data['latitude'].toString();
+                    }
+                    if (data['longitude'] != null && data['longitude'].toString().isNotEmpty) {
+                      block.longitudeCtrl.text = data['longitude'].toString();
+                    }
+                  });
+                },
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Enter Location';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -276,8 +673,9 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
                     child: Column(
                       children: [
                         _buildTextField('Name', block.nameCtrl),
-                        _buildTextField('Sector', block.sectorCtrl),
-                        _buildTextField('Location', block.locationCtrl),
+                        _buildSectorDropdownField(block),
+                        _buildCountryDropdownField(block),
+                        _buildLocationField(block),
                         _buildTextField('Radius', block.radiusCtrl, isNumber: true, isRequired: false),
                         _buildTextField('Latitude', block.latitudeCtrl, isNumber: true, isRequired: false),
                         _buildTextField('Longitude', block.longitudeCtrl, isNumber: true, isRequired: false),

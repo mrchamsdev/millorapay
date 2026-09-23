@@ -4,6 +4,9 @@ import '../core/constants/app_colors.dart';
 class GoldDialogs {
   GoldDialogs._();
 
+  static final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
   /// Shows a premium permission/confirmation dialog.
   static Future<bool> showPermissionDialog({
     required BuildContext context,
@@ -121,8 +124,19 @@ class GoldDialogs {
   }
 
   /// Shows a quick success/error snackbar in the gold theme.
-  static void showSnackBar(BuildContext context, String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
+  static void showSnackBar(
+    BuildContext? context,
+    String message, {
+    bool isError = false,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    final messenger = (context != null && context.mounted)
+        ? ScaffoldMessenger.maybeOf(context)
+        : null;
+    final target = messenger ?? scaffoldMessengerKey.currentState;
+    if (target == null) return;
+    target.hideCurrentSnackBar();
+    target.showSnackBar(
       SnackBar(
         content: Text(
           message,
@@ -132,6 +146,7 @@ class GoldDialogs {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         margin: const EdgeInsets.all(16),
+        duration: duration,
       ),
     );
   }
