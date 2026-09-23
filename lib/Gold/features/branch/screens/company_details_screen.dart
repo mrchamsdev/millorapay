@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_routes.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../models/branch_model.dart';
 import '../repository/branch_repository.dart';
 
 class CompanyDetailsScreen extends StatefulWidget {
   final String companyId;
+  final Company? initialCompany;
 
-  const CompanyDetailsScreen({super.key, required this.companyId});
+  const CompanyDetailsScreen({
+    super.key,
+    required this.companyId,
+    this.initialCompany,
+  });
 
   @override
   State<CompanyDetailsScreen> createState() => _CompanyDetailsScreenState();
@@ -18,27 +24,39 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
   final BranchRepository _repository = BranchRepository();
   Company? _company;
   bool _isLoading = true;
+  bool _hasUpdated = false;
 
   @override
   void initState() {
     super.initState();
+    _company = widget.initialCompany;
+    _isLoading = _company == null;
     _fetchDetails();
   }
 
   Future<void> _fetchDetails() async {
-    setState(() => _isLoading = true);
+    if (_company == null) {
+      setState(() => _isLoading = true);
+    }
     try {
       final company = await _repository.getCompanyById(widget.companyId);
-      setState(() {
-        _company = company;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          if (company != null) {
+            _company = company.copyWith(
+              user: company.user ?? _company?.user,
+              branches: company.branches.isNotEmpty ? company.branches : (_company?.branches ?? []),
+            );
+          }
+          _isLoading = false;
+        });
+      }
     } catch (_) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-
-
 
   String _getFileName(String? url) {
     if (url == null || url.trim().isEmpty) return 'N/A';
@@ -165,7 +183,9 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const GoldBackButton(),
+        leading: GoldBackButton(
+          onPressed: () => Navigator.pop(context, _hasUpdated),
+        ),
         title: const Text(
           'Company Details',
           style: TextStyle(
@@ -175,9 +195,27 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          if (_company != null)
+            IconButton(
+              icon: SvgPicture.asset('assets/images/Edit.svg', width: 20, height: 20),
+              onPressed: () async {
+                final result = await Navigator.pushNamed(
+                  context,
+                  AppRoutes.addCompany,
+                  arguments: _company,
+                );
+                if (result == true) {
+                  _hasUpdated = true;
+                  _fetchDetails();
+                }
+              },
+            ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
           : _company == null
               ? const Center(child: Text('Failed to load company details.'))
               : SingleChildScrollView(
@@ -185,15 +223,18 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Header title
                       Text(
                         _company!.companyName ?? 'Company',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 16,
                           color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 16),
+
+                      // Company Details Card
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                         decoration: BoxDecoration(
@@ -204,7 +245,11 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                         child: Column(
                           children: [
                             _buildDetailRow('Name', _company!.companyName ?? 'N/A'),
-                            _buildDetailRow('Sector', _company!.sector ?? 'N/A'),
+                            if (_company!.legalEntityName != null && _company!.legalEntityName!.isNotEmpty)
+                              _buildDetailRow('Legal Name', _company!.legalEntityName!),
+                            if (_company!.companyType != null && _company!.companyType!.isNotEmpty)
+                              _buildDetailRow('Type', _company!.companyType!),
+                            _buildDetailRow('Sector', _company!.sector?.isNotEmpty == true ? _company!.sector! : 'N/A'),
                             _buildDetailRow(
                               'Logo',
                               _getFileName(_company!.logo),
@@ -223,7 +268,13 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                                     )
                                   : null,
                             ),
-                            _buildDetailRow('Location', _company!.city ?? 'N/A'),
+                            _buildDetailRow('Location', _company!.city?.isNotEmpty == true ? _company!.city! : 'N/A'),
+                            if (_company!.country != null && _company!.country!.isNotEmpty)
+                              _buildDetailRow('Country', _company!.country!),
+                            if (_company!.companyEmail != null && _company!.companyEmail!.isNotEmpty)
+                              _buildDetailRow('Email', _company!.companyEmail!),
+                            if (_company!.companyPhone != null && _company!.companyPhone!.isNotEmpty)
+                              _buildDetailRow('Phone', _company!.companyPhone!),
                             if (_company!.radius != null)
                               _buildDetailRow('Radius', _company!.radius.toString()),
                             if (_company!.latitude != null)
@@ -234,9 +285,11 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      if (_company!.branches.isNotEmpty) ...[
+
+                      // User Information Card (from GET /api/company/all)
+                      if (_company!.user != null) ...[
                         const Text(
-                          'Branches',
+                          'Authorized User',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
@@ -244,18 +297,67 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Column(
+                            children: [
+                              if (_company!.user!.name != null && _company!.user!.name!.isNotEmpty)
+                                _buildDetailRow('User Name', _company!.user!.name!),
+                              if (_company!.user!.email != null && _company!.user!.email!.isNotEmpty)
+                                _buildDetailRow('User Email', _company!.user!.email!),
+                              if (_company!.user!.id != null)
+                                _buildDetailRow('User ID', _company!.user!.id.toString()),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Branches Card (from branches array in GET calls)
+                      const Text(
+                        'Branches',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_company!.branches.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: const Text(
+                            'No branches associated.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        )
+                      else
                         ..._company!.branches.map((branch) => Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              branch.name,
+                              branch.name.isNotEmpty ? branch.name : 'Branch ${branch.id ?? ''}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                                 color: AppColors.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             Container(
                               margin: const EdgeInsets.only(bottom: 16),
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -267,9 +369,13 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildDetailRow('Name', branch.name),
-                                  _buildDetailRow('Sector', branch.sector),
-                                  _buildDetailRow('Location', branch.location),
+                                  if (branch.id != null)
+                                    _buildDetailRow('Branch ID', branch.id!),
+                                  _buildDetailRow('Name', branch.name.isNotEmpty ? branch.name : 'N/A'),
+                                  if (branch.sector.isNotEmpty)
+                                    _buildDetailRow('Sector', branch.sector),
+                                  if (branch.location.isNotEmpty)
+                                    _buildDetailRow('Location', branch.location),
                                   if (branch.radius != null)
                                     _buildDetailRow('Radius', branch.radius.toString()),
                                   if (branch.latitude != null)
@@ -281,7 +387,6 @@ class _CompanyDetailsScreenState extends State<CompanyDetailsScreen> {
                             ),
                           ],
                         )),
-                      ]
                     ],
                   ),
                 ),

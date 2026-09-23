@@ -83,4 +83,7 @@ class GoldApiConstants {
   static String deleteBranch(String id) => '$baseUrl/branch/delete/$id';
   static String updateBranch(String id) => '$baseUrl/branch/update/$id';
   static String singleBranch(String id) => '$baseUrl/branch/$id';
+
+  // ── Sectors ───────────────────────────────────────────────────────────────
+  static String get allSectors => '$baseUrl/sector/all';
 }

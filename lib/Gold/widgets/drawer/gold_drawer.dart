@@ -5,6 +5,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/network/gold_session.dart';
 import '../../features/branch/repository/branch_repository.dart';
+import '../gold_dialogs.dart';
 import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 class GoldDrawer extends StatefulWidget {
   const GoldDrawer({super.key});
@@ -74,10 +75,15 @@ class _GoldDrawerState extends State<GoldDrawer> {
                           style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                         ),
                         onTap: () {
+                          final selectedCompanyName = company.companyName;
                           GoldSession.instance.setActiveCompany(company.companyId).then((_) {
                             Navigator.pop(context); // Close bottom sheet
                             Navigator.pop(context); // Close drawer
                             Navigator.pushNamedAndRemoveUntil(context, AppRoutes.mainNavigation, (route) => false);
+                            GoldDialogs.showSnackBar(
+                              null,
+                              'You are shifted to $selectedCompanyName successfully',
+                            );
                           });
                         },
                       );
@@ -195,11 +201,11 @@ class _GoldDrawerState extends State<GoldDrawer> {
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () {
+                          final currentCompanyName = GoldSession.instance.userAccess.first.companyName;
                           Navigator.pop(context);
-                          Navigator.pushNamed(
-                            context,
-                            AppRoutes.companyDetails,
-                            arguments: GoldSession.instance.userAccess.first.companyId.toString(),
+                          GoldDialogs.showSnackBar(
+                            null,
+                            'You are already shifted to $currentCompanyName',
                           );
                         },
                         child: Row(
@@ -352,7 +358,9 @@ class _GoldDrawerState extends State<GoldDrawer> {
                         showIconBackground: false,
                         title: GoldSession.instance.userAccess[i].companyName,
                         onTap: () async {
-                          final selectedCompanyId = GoldSession.instance.userAccess[i].companyId;
+                          final selectedCompany = GoldSession.instance.userAccess[i];
+                          final selectedCompanyId = selectedCompany.companyId;
+                          final selectedCompanyName = selectedCompany.companyName;
                           await GoldSession.instance.swapCompanyWithTop(selectedCompanyId);
                           if (context.mounted) {
                             Navigator.pop(context); // Close Drawer
@@ -360,6 +368,10 @@ class _GoldDrawerState extends State<GoldDrawer> {
                               context,
                               AppRoutes.mainNavigation,
                               (route) => false,
+                            );
+                            GoldDialogs.showSnackBar(
+                              null,
+                              'You are shifted to $selectedCompanyName successfully',
                             );
                           }
                         },

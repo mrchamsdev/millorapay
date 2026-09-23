@@ -25,14 +25,40 @@ class BranchRepository {
 
         if (decodedData is List) {
           return decodedData.map((e) => Company.fromJson(Map<String, dynamic>.from(e))).toList();
-        } else if (decodedData is Map && decodedData['data'] is List) {
-          return (decodedData['data'] as List).map((e) => Company.fromJson(Map<String, dynamic>.from(e))).toList();
+        } else if (decodedData is Map) {
+          final list = decodedData['data'] ?? decodedData['companies'] ?? decodedData['result'];
+          if (list is List) {
+            return list.map((e) => Company.fromJson(Map<String, dynamic>.from(e))).toList();
+          }
         }
       } catch (e, stack) {
         debugPrint('Error parsing companies: $e\n$stack');
       }
     }
     return [];
+  }
+
+  Future<(bool, String?)> createCompany(Map<String, dynamic> payload) async {
+    final service = GoldPostAuthService(
+      GoldApiConstants.addCompany,
+      payload,
+    );
+
+    final result = await service.data();
+    final statusCode = result[0] as int;
+    final data = result[1];
+
+    debugPrint('Create Company POST Response ($statusCode): $data');
+
+    if (statusCode >= 200 && statusCode < 300) {
+      return (true, null);
+    } else {
+      String? errorMessage;
+      if (data is Map && data.containsKey('message')) {
+        errorMessage = data['message']?.toString();
+      }
+      return (false, errorMessage ?? 'Failed to create company');
+    }
   }
 
   Future<bool> updateCompany(String id, Map<String, dynamic> payload) async {
@@ -45,6 +71,46 @@ class BranchRepository {
     final statusCode = result[0] as int;
     
     return statusCode >= 200 && statusCode < 300;
+  }
+
+  Future<(bool, String?, Company?)> updateCompanyWithLogo(
+    String id,
+    Map<String, dynamic> payload, {
+    String? logoPath,
+  }) async {
+    final service = GoldPutMultipartAuthService(
+      url: GoldApiConstants.singleCompany(id),
+      fields: payload,
+      filePath: logoPath,
+      fileFieldName: 'logo',
+    );
+
+    final result = await service.data();
+    final statusCode = result[0] as int;
+    final data = result[1];
+
+    debugPrint('Update Company PUT Response ($statusCode): $data');
+
+    if (statusCode >= 200 && statusCode < 300) {
+      Company? updatedCompany;
+      try {
+        dynamic decoded = data;
+        if (data is String) decoded = jsonDecode(data);
+        if (decoded is Map<String, dynamic>) {
+          final companyData = decoded['data'] ?? decoded['company'] ?? decoded;
+          if (companyData is Map<String, dynamic>) {
+            updatedCompany = Company.fromJson(companyData);
+          }
+        }
+      } catch (_) {}
+      return (true, null, updatedCompany);
+    } else {
+      String? errorMessage;
+      if (data is Map && data.containsKey('message')) {
+        errorMessage = data['message']?.toString();
+      }
+      return (false, errorMessage ?? 'Failed to update company', null);
+    }
   }
 
   Future<bool> deleteCompany(String id) async {
@@ -181,5 +247,59 @@ class BranchRepository {
       }
     }
     return null;
+  }
+
+  Future<List<String>> getAllSectors() async {
+    final service = GoldGetService(
+      GoldApiConstants.allSectors,
+    );
+
+    final result = await service.data();
+    final statusCode = result[0] as int;
+    final data = result[1];
+
+    debugPrint('Sectors GET Response ($statusCode): $data');
+
+    if (statusCode >= 200 && statusCode < 300) {
+      try {
+        dynamic decodedData = data;
+        if (data is String) {
+          decodedData = jsonDecode(data);
+        }
+
+        List rawList = [];
+        if (decodedData is List) {
+          rawList = decodedData;
+        } else if (decodedData is Map) {
+          final list = decodedData['data'] ??
+              decodedData['sectors'] ??
+              decodedData['result'] ??
+              decodedData['items'];
+          if (list is List) {
+            rawList = list;
+          }
+        }
+
+        final Set<String> sectorSet = {};
+        for (final item in rawList) {
+          if (item is String && item.trim().isNotEmpty) {
+            sectorSet.add(item.trim());
+          } else if (item is Map) {
+            final name = item['sectorName'] ??
+                item['name'] ??
+                item['sector'] ??
+                item['title'] ??
+                item['label'];
+            if (name != null && name.toString().trim().isNotEmpty) {
+              sectorSet.add(name.toString().trim());
+            }
+          }
+        }
+        return sectorSet.toList();
+      } catch (e, stack) {
+        debugPrint('Error parsing sectors: $e\n$stack');
+      }
+    }
+    return [];
   }
 }

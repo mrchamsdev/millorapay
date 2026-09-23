@@ -6,6 +6,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/gold_session.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../../../widgets/gold_dialogs.dart';
+import '../../auth/models/auth_models.dart';
 import '../models/branch_model.dart';
 import '../repository/branch_repository.dart';
 
@@ -40,31 +41,49 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
   Future<void> _fetchCompanies() async {
     setState(() => _isLoading = true);
     try {
-      final userCompanyIds = GoldSession.instance.userAccess.map((ca) => ca.companyId).toList();
+      // 1. Fetch all companies for the current user from the API
+      List<Company> companies = await _repository.getAllCompanies();
 
-      List<Company> companies = [];
-      if (userCompanyIds.isNotEmpty) {
-        final results = await Future.wait(
-          userCompanyIds.map((id) => _repository.getCompanyById(id.toString())),
-        );
-        companies = results.whereType<Company>().toList();
-      }
-
-      // Fallback to getAllCompanies if individual calls returned nothing
+      // 2. Fallback to individual getCompanyById for session companies if getAllCompanies returned nothing
       if (companies.isEmpty) {
-        final all = await _repository.getAllCompanies();
+        final userCompanyIds = GoldSession.instance.userAccess.map((ca) => ca.companyId).toList();
         if (userCompanyIds.isNotEmpty) {
-          companies = all.where((c) => userCompanyIds.contains(c.id)).toList();
-        } else {
-          companies = all;
+          final results = await Future.wait(
+            userCompanyIds.map((id) => _repository.getCompanyById(id.toString())),
+          );
+          companies = results.whereType<Company>().toList();
         }
       }
 
-      // Final fallback to userAccess basic names if still empty
+      // 3. Final fallback to userAccess basic names if still empty
       if (companies.isEmpty && GoldSession.instance.userAccess.isNotEmpty) {
         companies = GoldSession.instance.userAccess
             .map((ca) => Company(id: ca.companyId, companyName: ca.companyName))
             .toList();
+      }
+
+      // 4. Sync any new companies into GoldSession so drawer & session have them
+      if (companies.isNotEmpty) {
+        final existingIds = GoldSession.instance.userAccess.map((ca) => ca.companyId).toSet();
+        final updatedAccess = List<CompanyAccess>.from(GoldSession.instance.userAccess);
+        bool hasNew = false;
+        for (final c in companies) {
+          if (c.id != null && !existingIds.contains(c.id)) {
+            hasNew = true;
+            updatedAccess.add(CompanyAccess(
+              companyId: c.id!,
+              companyName: c.companyName ?? '',
+              branches: c.branches.map((b) => BranchAccess(
+                branchId: int.tryParse(b.id ?? '') ?? 0,
+                branchName: b.name,
+                access: [],
+              )).toList(),
+            ));
+          }
+        }
+        if (hasNew) {
+          GoldSession.instance.updateUserAccess(updatedAccess);
+        }
       }
 
       if (mounted) {
@@ -100,6 +119,33 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
     });
   }
 
+  Widget _buildAddButton() {
+    return SizedBox(
+      height: 36,
+      child: ElevatedButton(
+        onPressed: () async {
+          final result = await Navigator.pushNamed(context, AppRoutes.addCompany);
+          if (result == true) {
+            _fetchCompanies();
+          }
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryBlue,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+        child: const Text(
+          '+ Add',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,6 +163,10 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          _buildAddButton(),
+          const SizedBox(width: 16),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,13 +210,16 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                                 (company.sector != null && company.sector!.isNotEmpty);
 
                             return ListTile(
-                              onTap: () {
+                              onTap: () async {
                                 if (company.id != null) {
-                                  Navigator.pushNamed(
+                                  final updated = await Navigator.pushNamed(
                                     context,
                                     AppRoutes.companyDetails,
-                                    arguments: company.id.toString(),
+                                    arguments: company,
                                   );
+                                  if (updated == true) {
+                                    _fetchCompanies();
+                                  }
                                 }
                               },
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -208,12 +261,28 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                               ),
                               subtitle: hasSubtitle
                                   ? Text(
-                                      company.city?.isNotEmpty == true
-                                          ? company.city!
-                                          : (company.sector ?? ''),
+                                      [
+                                        if (company.sector != null && company.sector!.isNotEmpty) company.sector!,
+                                        if (company.city != null && company.city!.isNotEmpty) company.city!,
+                                        if (company.branches.isNotEmpty)
+                                          '${company.branches.length} ${company.branches.length == 1 ? "branch" : "branches"}',
+                                      ].join(' • '),
                                       style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
                                     )
                                   : null,
+                              trailing: IconButton(
+                                icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
+                                onPressed: () async {
+                                  final result = await Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.addCompany,
+                                    arguments: company,
+                                  );
+                                  if (result == true) {
+                                    _fetchCompanies();
+                                  }
+                                },
+                              ),
                             );
                           },
                         ),

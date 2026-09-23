@@ -136,6 +136,8 @@ class _BranchDetailsScreenState extends State<BranchDetailsScreen> {
                           children: [
                             _buildDetailRow('Name', _branch!.name.isNotEmpty ? _branch!.name : 'N/A'),
                             _buildDetailRow('Sector', _branch!.sector.isNotEmpty ? _branch!.sector : 'N/A'),
+                            if (_branch!.country != null && _branch!.country!.isNotEmpty)
+                              _buildDetailRow('Country', _branch!.country!),
                             _buildDetailRow('Location', _branch!.location.isNotEmpty ? _branch!.location : 'N/A'),
                             if (_branch!.radius != null)
                               _buildDetailRow('Radius', _branch!.radius.toString()),

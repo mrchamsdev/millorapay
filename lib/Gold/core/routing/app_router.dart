@@ -37,6 +37,7 @@ import '../../features/customer/screens/customer_details_screen.dart';
 import '../../features/customer/models/customer_model.dart';
 import '../../features/branch/screens/branches_screen.dart';
 import '../../features/branch/screens/companies_screen.dart';
+import '../../features/branch/screens/add_company_screen.dart';
 import '../../features/branch/screens/add_branch_screen.dart';
 import '../../features/branch/screens/branch_details_screen.dart';
 import '../../features/branch/screens/company_details_screen.dart';
@@ -175,6 +176,10 @@ class AppRouter {
       case AppRoutes.companies:
         return _slide(const CompaniesScreen());
 
+      case AppRoutes.addCompany:
+        final company = settings.arguments as Company?;
+        return _slide(AddCompanyScreen(companyToEdit: company));
+
       case AppRoutes.branches:
         return _slide(const BranchesScreen());
         
@@ -196,6 +201,10 @@ class AppRouter {
         return _slide(BranchDetailsScreen(branchId: branchId));
 
       case AppRoutes.companyDetails:
+        if (settings.arguments is Company) {
+          final c = settings.arguments as Company;
+          return _slide(CompanyDetailsScreen(companyId: c.id?.toString() ?? '', initialCompany: c));
+        }
         final companyId = settings.arguments as String;
         return _slide(CompanyDetailsScreen(companyId: companyId));
 

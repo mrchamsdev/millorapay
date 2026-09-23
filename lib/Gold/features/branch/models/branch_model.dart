@@ -1,8 +1,35 @@
+class CompanyUserData {
+  final int? id;
+  final String? name;
+  final String? email;
+
+  CompanyUserData({
+    this.id,
+    this.name,
+    this.email,
+  });
+
+  factory CompanyUserData.fromJson(Map<String, dynamic> json) {
+    return CompanyUserData(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? json['_id']?.toString() ?? ''),
+      name: json['name']?.toString(),
+      email: json['email']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    if (name != null) 'name': name,
+    if (email != null) 'email': email,
+  };
+}
+
 class Branch {
   final String? id;
   final int? companyId;
   final String name;
   final String sector;
+  final String? country;
   final String location;
   final num? radius;
   final num? latitude;
@@ -13,6 +40,7 @@ class Branch {
     this.companyId,
     required this.name,
     required this.sector,
+    this.country,
     required this.location,
     this.radius,
     this.latitude,
@@ -21,11 +49,12 @@ class Branch {
 
   factory Branch.fromJson(Map<String, dynamic> json) {
     return Branch(
-      id: json['_id']?.toString() ?? json['id']?.toString(),
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? json['branchId']?.toString(),
       companyId: json['companyId'] is int ? json['companyId'] : int.tryParse(json['companyId']?.toString() ?? ''),
-      name: json['name'] ?? '',
-      sector: json['sector'] ?? '',
-      location: json['location'] ?? '',
+      name: json['name']?.toString() ?? json['branchName']?.toString() ?? '',
+      sector: json['sector']?.toString() ?? '',
+      country: json['country']?.toString(),
+      location: json['location']?.toString() ?? json['city']?.toString() ?? '',
       radius: json['radius'] is num
           ? json['radius']
           : num.tryParse(json['radius']?.toString() ?? ''),
@@ -44,6 +73,7 @@ class Branch {
       if (companyId != null) 'companyId': companyId,
       'name': name,
       'sector': sector,
+      if (country != null && country!.trim().isNotEmpty) 'country': country,
       'location': location,
       if (radius != null) 'radius': radius,
       if (latitude != null) 'latitude': latitude,
@@ -67,6 +97,7 @@ class Company {
   final num? longitude;
   final String? logo;
   final List<Branch> branches;
+  final CompanyUserData? user;
 
   Company({
     this.id,
@@ -83,11 +114,12 @@ class Company {
     this.longitude,
     this.logo,
     this.branches = const [],
+    this.user,
   });
 
   factory Company.fromJson(Map<String, dynamic> json) {
     return Company(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? ''),
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? json['companyId']?.toString() ?? json['_id']?.toString() ?? ''),
       companyName: json['companyName']?.toString(),
       legalEntityName: json['legalEntityName']?.toString(),
       companyType: json['companyType']?.toString(),
@@ -104,6 +136,45 @@ class Company {
           .whereType<Map>()
           .map((e) => Branch.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
+      user: json['user'] is Map
+          ? CompanyUserData.fromJson(Map<String, dynamic>.from(json['user']))
+          : null,
+    );
+  }
+
+  Company copyWith({
+    int? id,
+    String? companyName,
+    String? legalEntityName,
+    String? companyType,
+    String? sector,
+    String? companyEmail,
+    String? companyPhone,
+    String? city,
+    String? country,
+    num? radius,
+    num? latitude,
+    num? longitude,
+    String? logo,
+    List<Branch>? branches,
+    CompanyUserData? user,
+  }) {
+    return Company(
+      id: id ?? this.id,
+      companyName: companyName ?? this.companyName,
+      legalEntityName: legalEntityName ?? this.legalEntityName,
+      companyType: companyType ?? this.companyType,
+      sector: sector ?? this.sector,
+      companyEmail: companyEmail ?? this.companyEmail,
+      companyPhone: companyPhone ?? this.companyPhone,
+      city: city ?? this.city,
+      country: country ?? this.country,
+      radius: radius ?? this.radius,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      logo: logo ?? this.logo,
+      branches: branches ?? this.branches,
+      user: user ?? this.user,
     );
   }
 
@@ -123,6 +194,7 @@ class Company {
       if (longitude != null) 'longitude': longitude,
       if (logo != null) 'logo': logo,
       'branches': branches.map((e) => e.toJson()).toList(),
+      if (user != null) 'user': user!.toJson(),
     };
   }
 }
