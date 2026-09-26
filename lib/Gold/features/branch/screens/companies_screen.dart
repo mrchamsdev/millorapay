@@ -73,6 +73,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
             updatedAccess.add(CompanyAccess(
               companyId: c.id!,
               companyName: c.companyName ?? '',
+              sector: c.sector,
               branches: c.branches.map((b) => BranchAccess(
                 branchId: int.tryParse(b.id ?? '') ?? 0,
                 branchName: b.name,

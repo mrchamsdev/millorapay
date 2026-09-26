@@ -1354,9 +1354,15 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/screen_utility.dart';
 import '../../core/network/gold_session.dart';
+import '../../core/constants/app_routes.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../auth/models/auth_models.dart';
+import '../branch/repository/branch_repository.dart';
+import '../branch/models/branch_model.dart';
+import '../users/models/user_model.dart';
 import '../loans/repository/loan_repository.dart';
 import '../gold/repository/gold_repository.dart';
+import '../gold/screens/gold_screen.dart';
 import '../expenses/repository/expense_repository.dart';
 import '../users/repository/user_repository.dart';
 import 'repository/dashboard_repository.dart';
@@ -1372,7 +1378,37 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with RouteAware {
+  // Super Admin / Zero Companies State
+  User? _currentUser;
+  int _companiesCount = 0;
+  bool _isLoadingUserData = true;
+
+  bool get _isSuperAdmin {
+    final role = (_currentUser?.role ?? GoldSession.instance.userRole ?? '').toLowerCase().trim();
+    return role.contains('super admin') || role == 'super admin';
+  }
+
+  bool get _hasZeroCompanies => _companiesCount == 0 && GoldSession.instance.userAccess.isEmpty;
+
+  // Active Company & Sector State
+  String? _activeCompanySector;
+  String? _activeCompanyName;
+
+  bool get _isMiningSector {
+    final sector = (_activeCompanySector ?? GoldSession.instance.activeCompanySector ?? '').toLowerCase().trim();
+    if (sector.contains('it') || sector.contains('information technology') || sector.contains('technology') || sector.contains('software')) {
+      return false;
+    }
+    if (sector.contains('mining') || sector.contains('gold') || sector.contains('metal')) {
+      return true;
+    }
+    if (sector.isNotEmpty) {
+      return false;
+    }
+    return true;
+  }
+
   // Settings & Toggles
   bool _showBalances = true;
   bool _autoUpdate = true;
@@ -1468,6 +1504,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _companiesCount = GoldSession.instance.userAccess.length;
     _liveMetals = List.from(_baseMetals.map((m) => {
       'name': m['name'],
       'bid': m['baseBid'],
@@ -1487,7 +1524,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      goldRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Automatically re-check when returning to Home screen
+    _loadTelemetryData();
+  }
+
+  @override
   void dispose() {
+    goldRouteObserver.unsubscribe(this);
     _clockTimer?.cancel();
     _fluctuationTimer?.cancel();
     super.dispose();
@@ -1578,14 +1631,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 */
-Future<void> _loadTelemetryData() async {
+  Future<void> _loadTelemetryData() async {
     try {
+      int count = GoldSession.instance.userAccess.length;
+
       // 1. Silently update user access permissions in the background
       if (GoldSession.instance.userId != null) {
         try {
           final user = await UserRepository().getUser(GoldSession.instance.userId!);
           if (user != null) {
-            await GoldSession.instance.updateUserAccess(user.userAccess);
+            _currentUser = user;
+            if (user.role != null && user.role!.isNotEmpty) {
+              await GoldSession.instance.updateUserRole(user.role!);
+            }
+            await GoldSession.instance.updateUserAccess(user.userAccess, user.globalAccess);
+            count = user.userAccess.length;
             if (mounted) {
               widget.onSessionRefreshed?.call();
             }
@@ -1593,6 +1653,77 @@ Future<void> _loadTelemetryData() async {
         } catch (e) {
           debugPrint('[Dashboard] Failed to refresh user profile: $e');
         }
+      }
+
+      // If count is 0 and role is super admin, check BranchRepository().getAllCompanies()
+      if (count == 0 && _isSuperAdmin) {
+        try {
+          final comps = await BranchRepository().getAllCompanies();
+          count = comps.length;
+          if (comps.isNotEmpty) {
+            final access = comps.map((c) => CompanyAccess(
+              companyId: c.id ?? 0,
+              companyName: c.companyName ?? '',
+              sector: c.sector,
+              branches: c.branches.map((b) => BranchAccess(
+                branchId: int.tryParse(b.id ?? '') ?? 0,
+                branchName: b.name,
+                access: [],
+              )).toList(),
+            )).toList();
+            await GoldSession.instance.updateUserAccess(access);
+            if (mounted) {
+              widget.onSessionRefreshed?.call();
+            }
+          }
+        } catch (_) {}
+      }
+
+      // Always ensure active company sector is loaded
+      try {
+        final comps = await BranchRepository().getAllCompanies();
+        if (comps.isNotEmpty) {
+          final activeId = GoldSession.instance.userAccess.isNotEmpty
+              ? GoldSession.instance.userAccess.first.companyId
+              : null;
+          final currentComp = activeId != null
+              ? comps.firstWhere((c) => c.id == activeId, orElse: () => comps.first)
+              : comps.first;
+          _activeCompanySector = currentComp.sector;
+          _activeCompanyName = currentComp.companyName;
+
+          // Sync sector into GoldSession userAccess if missing
+          final currentSessionAccess = GoldSession.instance.userAccess;
+          if (currentSessionAccess.isNotEmpty) {
+            final updatedAccess = currentSessionAccess.map((ca) {
+              final match = comps.where((c) => c.id == ca.companyId).firstOrNull;
+              if (match != null && match.sector != null && match.sector!.isNotEmpty && ca.sector != match.sector) {
+                return CompanyAccess(
+                  companyId: ca.companyId,
+                  companyName: ca.companyName,
+                  sector: match.sector,
+                  branches: ca.branches,
+                );
+              }
+              return ca;
+            }).toList();
+            await GoldSession.instance.updateUserAccess(updatedAccess);
+          }
+        }
+      } catch (e) {
+        debugPrint('[Dashboard] Error fetching active company sector: $e');
+      }
+
+      if (mounted) {
+        setState(() {
+          _companiesCount = count;
+          _isLoadingUserData = false;
+        });
+      }
+
+      // If Super Admin with 0 companies, skip dashboard telemetry calculations
+      if (_isSuperAdmin && count == 0) {
+        return;
       }
 
       // 2. Fetch period-scoped portfolio summary AND un-scoped totals
@@ -1775,9 +1906,116 @@ Future<void> _loadTelemetryData() async {
     };
   }
 
+  Widget _buildNoCompanyState() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _loadTelemetryData();
+      },
+      color: AppColors.primaryBlue,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight,
+              ),
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 90,
+                        height: 90,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEFF6FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: SvgPicture.asset(
+                            'assets/images/Company.svg',
+                            width: 44,
+                            height: 44,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.business_outlined,
+                              size: 44,
+                              color: AppColors.primaryBlue,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Create company first',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Please create your company first to start managing branches, expenses, and portfolio.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        height: 38,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final result = await Navigator.pushNamed(context, AppRoutes.addCompany);
+                            if (result == true) {
+                              await _loadTelemetryData();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBlue,
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(19),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            '+ Add',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ScreenUtility().init(context);
+
+    if (_isSuperAdmin && _hasZeroCompanies) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF9FAFC),
+        body: _buildNoCompanyState(),
+      );
+    }
 
     final totalPLColor = _totalPL >= 0 ? AppColors.success : AppColors.error;
     final todaysPLColor = _todaysPL >= 0 ? AppColors.success : AppColors.error;
@@ -1799,39 +2037,41 @@ Future<void> _loadTelemetryData() async {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Header Section (Market Status) ─────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: AppColors.success,
-                          shape: BoxShape.circle,
+              if (_isMiningSector) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: AppColors.success,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'The Spot Market is Open',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: const Color(0xFF727271),
-                          fontWeight: FontWeight.w400,
+                        const SizedBox(width: 6),
+                        Text(
+                          'The Spot Market is Open',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: const Color(0xFF727271),
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    'Closes in 13hrs, 40mins',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
+                      ],
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    Text(
+                      'Closes in 13hrs, 40mins',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // ── Portfolio Summary Card ──────────────────────────────────────────
               Container(
@@ -2001,139 +2241,140 @@ Future<void> _loadTelemetryData() async {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              if (_isMiningSector) ...[
+                const SizedBox(height: 16),
 
-              // ── Quick Access Row (Loans & Recent Transactions) ────────────────
-              Row(
-                children: [
-                  // Loans Outstanding Card
-                  Expanded(
-                    child: Container(
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFF1F2F5)),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF003366),
-                              borderRadius: BorderRadius.circular(8),
+                // ── Quick Access Row (Loans & Recent Transactions) ────────────────
+                Row(
+                  children: [
+                    // Loans Outstanding Card
+                    Expanded(
+                      child: Container(
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFF1F2F5)),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF003366),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.monetization_on_outlined,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.monetization_on_outlined,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    'Loans Outstanding',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: const Color(0xFF727271),
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 11,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'Loans Outstanding',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: const Color(0xFF727271),
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 11,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    _formatCurrency(_loansOutstanding),
-                                    style: AppTextStyles.bodyLarge.copyWith(
-                                      color: AppColors.textPrimary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
+                                  const SizedBox(height: 4),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      _formatCurrency(_loansOutstanding),
+                                      style: AppTextStyles.bodyLarge.copyWith(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Recent Transactions Card
-                  Expanded(
-                    child: Container(
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFF1F2F5)),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF003366),
-                              borderRadius: BorderRadius.circular(8),
+                    const SizedBox(width: 12),
+                    // Recent Transactions Card
+                    Expanded(
+                      child: Container(
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFF1F2F5)),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF003366),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.description_outlined,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.description_outlined,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    'Recent Transactions',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: const Color(0xFF727271),
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 11,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'Recent Transactions',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: const Color(0xFF727271),
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 11,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    '$_recentTransactionsCount',
-                                    style: AppTextStyles.bodyLarge.copyWith(
-                                      color: AppColors.textPrimary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
+                                  const SizedBox(height: 4),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      '$_recentTransactionsCount',
+                                      style: AppTextStyles.bodyLarge.copyWith(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
+                  ],
+                ),
+                const SizedBox(height: 24),
 
-              // ── Precious Metals Header & Selectors ──────────────────────────────
+                // ── Precious Metals Header & Selectors ──────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -2400,6 +2641,7 @@ Future<void> _loadTelemetryData() async {
                   ),
                 ),
               ),
+            ],
               const SizedBox(height: 32),
             ],
           ),
@@ -2407,6 +2649,8 @@ Future<void> _loadTelemetryData() async {
       ),
     );
   }
+
+
 
   Widget _buildTableHeaderCell(String text, Alignment alignment) {
     return TableCell(

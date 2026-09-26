@@ -112,11 +112,15 @@ class User {
               .map((e) => UserAccessEntry.fromJson(Map<String, dynamic>.from(e)))
               .toList()
           : [],
-      userAccess: json['userAccess'] != null && json['userAccess'] is Map
-          ? (json['userAccess']['companies'] as List? ?? [])
+      userAccess: (json['userAccess'] != null && json['userAccess'] is Map && json['userAccess']['companies'] is List)
+          ? (json['userAccess']['companies'] as List)
               .map((e) => CompanyAccess.fromJson(Map<String, dynamic>.from(e)))
               .toList()
-          : [],
+          : (json['companies'] is List
+              ? (json['companies'] as List)
+                  .map((e) => CompanyAccess.fromJson(Map<String, dynamic>.from(e)))
+                  .toList()
+              : []),
     );
   }
 

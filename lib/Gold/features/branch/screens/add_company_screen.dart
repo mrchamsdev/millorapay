@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/country_utility.dart';
 import '../../../widgets/gold_back_button.dart';
 import '../../../widgets/gold_dialogs.dart';
 import '../models/branch_model.dart';
@@ -658,8 +659,16 @@ class _AddCompanyScreenState extends State<AddCompanyScreen> {
                     ],
                     _buildTextField('Email', _emailCtrl, keyboardType: TextInputType.emailAddress, hintText: 'company@example.com'),
                     _buildTextField('Phone', _phoneCtrl, keyboardType: TextInputType.phone, hintText: '+91 9876543210'),
+                    _buildDropdownField(
+                      'Country',
+                      _countryCtrl.text.isNotEmpty ? _countryCtrl.text : 'India',
+                      CountryUtility.getAllCountries().map((c) => c.name).toList(),
+                      (val) {
+                        if (val != null) setState(() => _countryCtrl.text = val);
+                      },
+                      hintText: 'Select country',
+                    ),
                     _buildTextField('City', _cityCtrl, hintText: 'City'),
-                    _buildTextField('Country', _countryCtrl, hintText: 'Country'),
                   ],
                 ),
               ),

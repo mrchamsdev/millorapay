@@ -158,11 +158,13 @@ class BranchAccess {
 class CompanyAccess {
   final int companyId;
   final String companyName;
+  final String? sector;
   final List<BranchAccess> branches;
 
   const CompanyAccess({
     required this.companyId,
     required this.companyName,
+    this.sector,
     required this.branches,
   });
 
@@ -170,8 +172,9 @@ class CompanyAccess {
     return CompanyAccess(
       companyId: json['companyId'] is int
           ? json['companyId'] as int
-          : int.tryParse(json['companyId']?.toString() ?? '') ?? 0,
-      companyName: json['companyName']?.toString() ?? '',
+          : (int.tryParse(json['companyId']?.toString() ?? json['id']?.toString() ?? '') ?? 0),
+      companyName: json['companyName']?.toString() ?? json['name']?.toString() ?? '',
+      sector: json['sector']?.toString(),
       branches: (json['branches'] as List? ?? [])
           .whereType<Map>()
           .map((e) => BranchAccess.fromJson(Map<String, dynamic>.from(e)))
@@ -182,6 +185,7 @@ class CompanyAccess {
   Map<String, dynamic> toJson() => {
         'companyId': companyId,
         'companyName': companyName,
+        if (sector != null) 'sector': sector,
         'branches': branches.map((e) => e.toJson()).toList(),
       };
 }
