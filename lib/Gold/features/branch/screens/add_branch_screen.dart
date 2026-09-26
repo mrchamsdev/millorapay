@@ -52,34 +52,12 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
   final List<_BranchFormBlock> _blocks = [];
   final BranchRepository _repository = BranchRepository();
 
-  List<String> _sectors = [];
-  bool _isLoadingSectors = false;
 
-  static const List<String> _defaultSectors = [
-    'Agriculture & Food',
-    'Construction',
-    'Education',
-    'Energy & Utilities',
-    'Financial Services',
-    'Healthcare',
-    'Information Technology (IT)',
-    'Manufacturing',
-    'Real Estate',
-    'Retail & Consumer Goods',
-    'Telecommunications',
-    'Transportation & Logistics',
-    'Banking',
-    'Hospitality & Tourism',
-    'Automobile',
-    'Other',
-  ];
-  
   bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchSectors();
     _blocks.add(_BranchFormBlock());
     if (widget.branchToEdit != null) {
       final b = widget.branchToEdit!;
@@ -154,44 +132,6 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     super.dispose();
   }
 
-  Future<void> _fetchSectors() async {
-    setState(() => _isLoadingSectors = true);
-    try {
-      final fetched = await _repository.getAllSectors();
-      if (!mounted) return;
-      setState(() {
-        final set = <String>{};
-        for (final s in fetched) {
-          if (s.trim().isNotEmpty) set.add(s.trim());
-        }
-        if (set.isEmpty) {
-          set.addAll(_defaultSectors);
-        }
-        for (final b in _blocks) {
-          if (b.sectorCtrl.text.trim().isNotEmpty) {
-            set.add(b.sectorCtrl.text.trim());
-          }
-        }
-        _sectors = set.toList();
-        _isLoadingSectors = false;
-      });
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          if (_sectors.isEmpty) {
-            _sectors = List.from(_defaultSectors);
-            for (final b in _blocks) {
-              if (b.sectorCtrl.text.trim().isNotEmpty && !_sectors.contains(b.sectorCtrl.text.trim())) {
-                _sectors.add(b.sectorCtrl.text.trim());
-              }
-            }
-          }
-          _isLoadingSectors = false;
-        });
-      }
-    }
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -208,9 +148,22 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
     }
 
     if (activeCompanyId == null) {
+      try {
+        final companies = await _repository.getAllCompanies();
+        if (companies.isNotEmpty) {
+          activeCompanyId = companies.first.id;
+        }
+      } catch (_) {}
+    }
+
+    if (activeCompanyId == null) {
       setState(() => _isSubmitting = false);
       if (mounted) {
-        GoldDialogs.showSnackBar(context, 'No active company found.', isError: true);
+        GoldDialogs.showSnackBar(
+          context,
+          'Please create a company first, then you can create a branch.',
+          isError: true,
+        );
       }
       return;
     }
@@ -230,9 +183,12 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
         } catch (_) {}
       }
 
-      final sectorVal = (block.sectorCtrl.text.trim() == 'Other' && block.customSectorCtrl.text.trim().isNotEmpty)
+      String sectorVal = (block.sectorCtrl.text.trim() == 'Other' && block.customSectorCtrl.text.trim().isNotEmpty)
           ? block.customSectorCtrl.text.trim()
           : block.sectorCtrl.text.trim();
+      if (sectorVal.isEmpty) {
+        sectorVal = widget.companyToEdit?.sector ?? widget.branchToEdit?.sector ?? '';
+      }
 
       final branch = Branch(
         id: block.branchId,
@@ -327,92 +283,6 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
-      ],
-    );
-  }
-
-  Widget _buildSectorDropdownField(_BranchFormBlock block) {
-    final effectiveItems = List<String>.from(_sectors);
-    final currentVal = block.sectorCtrl.text.trim();
-    if (currentVal.isNotEmpty && !effectiveItems.contains(currentVal)) {
-      effectiveItems.insert(0, currentVal);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const SizedBox(
-              width: 100,
-              child: Text(
-                'Sector',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                key: ValueKey('${block.branchId}_${currentVal}_${effectiveItems.length}'),
-                initialValue: (currentVal.isNotEmpty && effectiveItems.contains(currentVal)) ? currentVal : null,
-                isExpanded: true,
-                hint: Text(
-                  _isLoadingSectors ? 'Loading sectors...' : 'Select Sector',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-                items: effectiveItems
-                    .map((item) => DropdownMenuItem(
-                          value: item,
-                          child: Text(
-                            item,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ))
-                    .toList(),
-                onChanged: (val) {
-                  setState(() {
-                    block.sectorCtrl.text = val ?? '';
-                  });
-                },
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFF1F2F5)),
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFF1F2F5)),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: AppColors.primaryBlue, width: 1.5),
-                  ),
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                ),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Select Sector';
-                  }
-                  return null;
-                },
-              ),
-            ),
-          ],
-        ),
-        if (block.sectorCtrl.text.trim() == 'Other') ...[
-          const SizedBox(height: 12),
-          _buildTextField('Custom Sector', block.customSectorCtrl, isRequired: true),
-        ],
         const SizedBox(height: 16),
       ],
     );
@@ -673,7 +543,6 @@ class _AddBranchScreenState extends State<AddBranchScreen> {
                     child: Column(
                       children: [
                         _buildTextField('Name', block.nameCtrl),
-                        _buildSectorDropdownField(block),
                         _buildCountryDropdownField(block),
                         _buildLocationField(block),
                         _buildTextField('Radius', block.radiusCtrl, isNumber: true, isRequired: false),

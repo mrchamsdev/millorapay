@@ -40,6 +40,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final CategoryRepository _categoryRepository = CategoryRepository();
   final ImagePicker _picker = ImagePicker();
 
+  Company? _selectedCompany;
+  List<Company> _companies = [];
+  bool _isLoadingCompanies = false;
+
   Branch? _selectedBranch;
   List<Branch> _branches = [];
   bool _isLoadingBranches = false;
@@ -100,6 +104,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   // ─── Controllers ─────────────────────────────────────────────────────────
+  final TextEditingController _companyController = TextEditingController();
   final TextEditingController _branchController = TextEditingController();
   final TextEditingController _amountController = TextEditingController(
     text: '',
@@ -119,7 +124,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void initState() {
     super.initState();
     _dateController.text = _formatDateForMask(_selectedDate);
-    _fetchBranches();
+    _fetchCompanies();
     _fetchUsers();
     if (_isEditMode) {
       _populateEditFields(widget.expense!);
@@ -345,26 +350,97 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
-  Future<void> _fetchBranches() async {
-    setState(() => _isLoadingBranches = true);
+  Future<void> _fetchCompanies() async {
+    setState(() => _isLoadingCompanies = true);
     try {
-      final topCompany = GoldSession.instance.userAccess.isNotEmpty ? GoldSession.instance.userAccess.first : null;
-      final topCompanyId = topCompany?.companyId;
-      
-      final list = await _branchRepository.getAllBranches(companyId: topCompanyId);
+      List<Company> list = await _branchRepository.getAllCompanies();
+
+      if (list.isEmpty) {
+        final userCompanyIds = GoldSession.instance.userAccess.map((ca) => ca.companyId).toList();
+        if (userCompanyIds.isNotEmpty) {
+          final results = await Future.wait(
+            userCompanyIds.map((id) => _branchRepository.getCompanyById(id.toString())),
+          );
+          list = results.whereType<Company>().toList();
+        }
+      }
+
+      if (list.isEmpty && GoldSession.instance.userAccess.isNotEmpty) {
+        list = GoldSession.instance.userAccess
+            .map((ca) => Company(id: ca.companyId, companyName: ca.companyName))
+            .toList();
+      }
+
       if (mounted) {
         setState(() {
-          final topCompanyBranchIds = topCompany?.branches.map((b) => b.branchId).toSet() ?? {};
+          _companies = list;
+          _isLoadingCompanies = false;
 
+          if (!_isEditMode && _selectedCompany == null && _companies.isNotEmpty) {
+            final sessionComp = GoldSession.instance.userAccess.isNotEmpty
+                ? _companies.firstWhere(
+                    (c) => c.id == GoldSession.instance.userAccess.first.companyId,
+                    orElse: () => _companies.first,
+                  )
+                : _companies.first;
+            _onCompanySelected(sessionComp, isInitial: true);
+          } else if (_isEditMode && _selectedCompany != null) {
+            final match = _companies.where((c) => c.id == _selectedCompany!.id).firstOrNull;
+            if (match != null) {
+              _selectedCompany = match;
+              _companyController.text = match.companyName ?? '';
+            }
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingCompanies = false);
+    }
+  }
+
+  void _onCompanySelected(Company company, {bool isInitial = false}) {
+    setState(() {
+      _selectedCompany = company;
+      _companyController.text = company.companyName ?? '';
+      if (!isInitial) {
+        _selectedBranch = null;
+        _branchController.clear();
+        _selectedPaidByUser = null;
+        _paidByController.clear();
+      }
+    });
+    _fetchBranches(companyId: company.id);
+  }
+
+  Future<void> _fetchBranches({int? companyId}) async {
+    final targetCompanyId = companyId ?? _selectedCompany?.id ?? 
+        (GoldSession.instance.userAccess.isNotEmpty ? GoldSession.instance.userAccess.first.companyId : null);
+
+    if (targetCompanyId == null) {
+      setState(() {
+        _branches = [];
+        _isLoadingBranches = false;
+      });
+      return;
+    }
+
+    setState(() => _isLoadingBranches = true);
+    try {
+      final list = await _branchRepository.getAllBranches(companyId: targetCompanyId);
+      if (mounted) {
+        final compAccess = GoldSession.instance.userAccess.where((ca) => ca.companyId == targetCompanyId).firstOrNull;
+        final compBranchIds = compAccess?.branches.map((b) => b.branchId).toSet() ?? {};
+
+        setState(() {
           if (GoldSession.instance.userRole?.toLowerCase().contains('admin') == true) {
             _branches = list.where((b) {
               final bId = int.tryParse(b.id ?? '') ?? 0;
-              return topCompanyBranchIds.contains(bId);
+              return compBranchIds.isEmpty || compBranchIds.contains(bId);
             }).toList();
           } else {
             _branches = list.where((b) {
               final bId = int.tryParse(b.id ?? '') ?? 0;
-              return topCompanyBranchIds.contains(bId) && GoldSession.instance.canWrite('Expenses', branchId: bId);
+              return (compBranchIds.isEmpty || compBranchIds.contains(bId)) && GoldSession.instance.canWrite('Expenses', branchId: bId);
             }).toList();
           }
           _isLoadingBranches = false;
@@ -375,10 +451,139 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
+  /// Opens the company selection bottom sheet.
+  Future<void> _openCompanyPicker() async {
+    if (_companies.isEmpty && !_isLoadingCompanies) {
+      await _fetchCompanies();
+    }
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.5,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text(
+                      'Select Company',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  if (_isLoadingCompanies)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: CircularProgressIndicator(color: AppColors.primaryBlue),
+                      ),
+                    )
+                  else if (_companies.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: Text(
+                          'No companies found',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _companies.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1, indent: 20, endIndent: 20),
+                        itemBuilder: (context, index) {
+                          final c = _companies[index];
+                          final isSelected = _selectedCompany?.id == c.id || _companyController.text == c.companyName;
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                            leading: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F2F5),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Center(
+                                child: SvgPicture.asset(
+                                  'assets/images/Company.svg',
+                                  width: 18,
+                                  height: 18,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.business,
+                                    size: 18,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              c.companyName ?? 'Company',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected ? AppColors.primaryBlue : AppColors.textPrimary,
+                              ),
+                            ),
+                            subtitle: c.city != null && c.city!.isNotEmpty
+                                ? Text(
+                                    c.city!,
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  )
+                                : null,
+                            trailing: isSelected
+                                ? const Icon(Icons.check_circle, color: AppColors.primaryBlue, size: 20)
+                                : null,
+                            onTap: () {
+                              _onCompanySelected(c);
+                              Navigator.pop(context);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   /// Opens the branch selection bottom sheet listing branches with name and location.
   Future<void> _openBranchPicker() async {
+    if (_selectedCompany == null) {
+      GoldDialogs.showSnackBar(
+        context,
+        'Please select a company first',
+        isError: true,
+      );
+      return;
+    }
+
     if (_branches.isEmpty && !_isLoadingBranches) {
-      await _fetchBranches();
+      await _fetchBranches(companyId: _selectedCompany!.id);
     }
 
     if (!mounted) return;
@@ -425,7 +630,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       padding: EdgeInsets.all(24),
                       child: Center(
                         child: Text(
-                          'No branches found',
+                          'No branches found for this company',
                           style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ),
@@ -485,6 +690,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   void dispose() {
+    _companyController.dispose();
     _branchController.dispose();
     _amountController.dispose();
     _categoryController.dispose();
@@ -511,6 +717,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     } catch (_) {
       _selectedDate = DateTime.now();
       _dateController.text = _formatDateForMask(_selectedDate);
+    }
+
+    // Pre-fill Company
+    if (exp.company != null) {
+      _selectedCompany = Company(
+        id: exp.company!.id,
+        companyName: exp.company!.companyName,
+      );
+      _companyController.text = exp.company!.companyName ?? '';
+    } else if (exp.companyId != 0) {
+      _selectedCompany = Company(
+        id: exp.companyId,
+        companyName: '',
+      );
+      _companyController.text = '';
+    }
+    if (_selectedCompany?.id != null) {
+      _fetchBranches(companyId: _selectedCompany!.id);
     }
 
     // Pre-fill Branch
@@ -765,6 +989,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   /// Validates and submits the expense form.
   Future<void> _handleSubmit() async {
+    if (_selectedCompany == null) {
+      GoldDialogs.showSnackBar(
+        context,
+        'Please select a company',
+        isError: true,
+      );
+      return;
+    }
+
     if (_selectedCategory == null) {
       GoldDialogs.showSnackBar(
         context,
@@ -823,6 +1056,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ? _categoryController.text.trim()
           : (_selectedCategory?.name ?? '');
 
+      final selectedCompanyId = _selectedCompany?.id ?? 
+          (GoldSession.instance.userAccess.isNotEmpty 
+              ? GoldSession.instance.userAccess.first.companyId 
+              : 1);
+
       if (_isEditMode) {
         List<int> computedReplacedIndices = [];
         if (_imagePaths.isNotEmpty) {
@@ -836,7 +1074,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         savedExpense = await _repository.updateExpense(
           widget.expense!.id!,
           expenseCategoryId: _selectedCategory!.id!,
-          companyId: widget.expense!.companyId,
+          companyId: selectedCompanyId,
           expenseDate: dateStr,
           amount: amount,
           amountType: _selectedCurrency,
@@ -862,9 +1100,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       } else {
         savedExpense = await _repository.createExpense(
           expenseCategoryId: _selectedCategory!.id!,
-          companyId: GoldSession.instance.userAccess.isNotEmpty 
-              ? GoldSession.instance.userAccess.first.companyId! 
-              : 1,
+          companyId: selectedCompanyId,
           expenseDate: dateStr,
           amount: amount,
           amountType: _selectedCurrency,
@@ -999,7 +1235,63 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 12),
-              // ── 1. Enter Branch Row (Top) ──────────────────────────
+              // ── 0. Select Company Row (Top) ─────────────────────────
+              _FormRow(
+                iconWidget: SvgPicture.asset(
+                  'assets/images/Company.svg',
+                  width: 22,
+                  height: 22,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.business_outlined,
+                    color: AppColors.textPrimary,
+                    size: 20,
+                  ),
+                ),
+                showBorder: true,
+                onIconTap: _openCompanyPicker,
+                child: GestureDetector(
+                  onTap: _openCompanyPicker,
+                  child: AbsorbPointer(
+                    child: TextField(
+                      controller: _companyController,
+                      readOnly: true,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Select Company',
+                        hintStyle: const TextStyle(
+                          color: Color(0xFFB0B1B4),
+                          fontSize: 14,
+                        ),
+                        enabledBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: const UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: AppColors.primaryBlue,
+                            width: 1.5,
+                          ),
+                        ),
+                        filled: false,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                        suffixIcon: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Colors.grey,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ── 1. Enter Branch Row ─────────────────────────────────
               _FormRow(
                 iconWidget: SvgPicture.asset(
                   'assets/images/Branch1.svg', // Replace with your Branch SVG asset path

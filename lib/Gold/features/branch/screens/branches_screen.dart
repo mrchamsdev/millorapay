@@ -7,7 +7,6 @@ import '../../../widgets/gold_back_button.dart';
 import '../../../widgets/gold_dialogs.dart';
 import '../models/branch_model.dart';
 import '../repository/branch_repository.dart';
-import '../../users/repository/user_repository.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class BranchesScreen extends StatefulWidget {
@@ -77,62 +76,6 @@ class _BranchesScreenState extends State<BranchesScreen> {
   }
 
   Future<void> _showDeleteConfirmation(Branch branch) async {
-    setState(() => _isLoading = true);
-    try {
-      final users = await UserRepository().getAllUsers();
-      final branchIdInt = int.tryParse(branch.id?.toString() ?? '');
-      bool hasUsers = false;
-      for (var u in users) {
-        if (u.branchId == branchIdInt || u.branchIds.contains(branchIdInt)) {
-          hasUsers = true;
-          break;
-        }
-        if (u.userAccess.any((ca) => ca.branches.any((ba) => ba.branchId == branchIdInt))) {
-          hasUsers = true;
-          break;
-        }
-      }
-      
-      setState(() => _isLoading = false);
-
-      if (hasUsers) {
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          builder: (context) => Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Already users exist you dont have permision to delete'),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Ok'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-        return;
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to check users.')),
-      );
-      return;
-    }
-
-    if (!mounted) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -174,6 +117,23 @@ class _BranchesScreenState extends State<BranchesScreen> {
       height: 36,
       child: ElevatedButton(
         onPressed: () async {
+          final activeCompanyId = GoldSession.instance.userAccess.isNotEmpty
+              ? GoldSession.instance.userAccess.first.companyId
+              : null;
+          if (activeCompanyId == null) {
+            final companies = await _repository.getAllCompanies();
+            if (companies.isEmpty) {
+              if (!mounted) return;
+              GoldDialogs.showSnackBar(
+                context,
+                'Please create a company first, then you can create a branch.',
+                isError: true,
+              );
+              return;
+            }
+          }
+
+          if (!mounted) return;
           final result = await Navigator.pushNamed(context, AppRoutes.addBranch);
           if (result == true) {
             _fetchBranches();
@@ -238,52 +198,63 @@ class _BranchesScreenState extends State<BranchesScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
-                : _filteredBranches.isEmpty
-                    ? const Center(child: Text('No branches found.'))
-                    : ListView.separated(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        itemCount: _filteredBranches.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
-                        itemBuilder: (context, index) {
-                          final branch = _filteredBranches[index];
-                          return ListTile(
-                            onTap: () {
-                              if (branch.id != null) {
-                                Navigator.pushNamed(context, AppRoutes.branchDetails, arguments: branch.id!);
-                              }
+                : RefreshIndicator(
+                    onRefresh: _fetchBranches,
+                    color: AppColors.primaryBlue,
+                    child: _filteredBranches.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              SizedBox(height: 120),
+                              Center(child: Text('No branches found.')),
+                            ],
+                          )
+                        : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.only(bottom: 20),
+                            itemCount: _filteredBranches.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
+                            itemBuilder: (context, index) {
+                              final branch = _filteredBranches[index];
+                              return ListTile(
+                                onTap: () {
+                                  if (branch.id != null) {
+                                    Navigator.pushNamed(context, AppRoutes.branchDetails, arguments: branch.id!);
+                                  }
+                                },
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                title: Text(
+                                  branch.name,
+                                  style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(
+                                  branch.location.isNotEmpty ? branch.location : branch.sector,
+                                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
+                                      onPressed: () async {
+                                        final result = await Navigator.pushNamed(context, AppRoutes.addBranch, arguments: branch);
+                                        if (result == true) {
+                                          _fetchBranches();
+                                        }
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
+                                      onPressed: () {
+                                        _showDeleteConfirmation(branch);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
                             },
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            title: Text(
-                              branch.name,
-                              style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text(
-                              branch.location.isNotEmpty ? branch.location : branch.sector,
-                              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: SvgPicture.asset('assets/images/Edit.svg', width: 16, height: 16),
-                                  onPressed: () async {
-                                    final result = await Navigator.pushNamed(context, AppRoutes.addBranch, arguments: branch);
-                                    if (result == true) {
-                                      _fetchBranches();
-                                    }
-                                  },
-                                ),
-                                IconButton(
-                                  icon: SvgPicture.asset('assets/images/Delete.svg', width: 16, height: 16),
-                                  onPressed: () {
-                                    _showDeleteConfirmation(branch);
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                          ),
+                  ),
           ),
         ],
       ),

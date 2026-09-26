@@ -65,6 +65,12 @@ class GoldSession {
   List<UserAccessEntry> get globalAccess => List.unmodifiable(_globalAccess);
   List<CompanyAccess> get userAccess => List.unmodifiable(_userAccess);
 
+  /// The sector of the currently active top company, if available.
+  String? get activeCompanySector {
+    if (_userAccess.isEmpty) return null;
+    return _userAccess.first.sector;
+  }
+
   bool get isLoggedIn => _token != null && _token!.isNotEmpty;
 
   bool _isGlobalModule(String module) {
@@ -205,6 +211,14 @@ class GoldSession {
     }
 
     if (kDebugMode) debugPrint('[GoldSession] 🔄 User access updated: ${_userAccess.length} modules');
+  }
+
+  /// Dynamically updates the user's role and persists it.
+  Future<void> updateUserRole(String role) async {
+    _userRole = role;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kUserRole, role);
+    if (kDebugMode) debugPrint('[GoldSession] 🔄 User role updated: $role');
   }
 
   /// Manually sets a company as the active top company
