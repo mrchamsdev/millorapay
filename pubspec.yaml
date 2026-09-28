@@ -72,6 +72,11 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+# 2.6.0 bundles objective_c.framework as an iOS Simulator slice, which App
+# Store Connect rejects. 2.5.1 is the last release that does not.
+dependency_overrides:
+  path_provider_foundation: 2.5.1
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

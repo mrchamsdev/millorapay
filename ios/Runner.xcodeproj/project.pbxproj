@@ -495,11 +495,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = M64TDM2H6D;
 				ENABLE_BITCODE = NO;
-				"FLUTTER_BUILD_NAME[arch=*]" = 2.0.1;
-				"FLUTTER_BUILD_NUMBER[arch=*]" = 2;
+				"FLUTTER_BUILD_NAME[arch=*]" = 8.0.1;
+				"FLUTTER_BUILD_NUMBER[arch=*]" = 10;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MilloraPay;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
@@ -507,7 +507,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 8.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mrchams.millorapay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -683,11 +683,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = M64TDM2H6D;
 				ENABLE_BITCODE = NO;
-				"FLUTTER_BUILD_NAME[arch=*]" = 2.0.1;
-				"FLUTTER_BUILD_NUMBER[arch=*]" = 2;
+				"FLUTTER_BUILD_NAME[arch=*]" = 8.0.1;
+				"FLUTTER_BUILD_NUMBER[arch=*]" = 10;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MilloraPay;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
@@ -695,7 +695,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 8.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mrchams.millorapay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -711,11 +711,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = M64TDM2H6D;
 				ENABLE_BITCODE = NO;
-				"FLUTTER_BUILD_NAME[arch=*]" = 2.0.1;
-				"FLUTTER_BUILD_NUMBER[arch=*]" = 2;
+				"FLUTTER_BUILD_NAME[arch=*]" = 8.0.1;
+				"FLUTTER_BUILD_NUMBER[arch=*]" = 10;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MilloraPay;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
@@ -723,7 +723,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.1;
+				MARKETING_VERSION = 8.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mrchams.millorapay;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
