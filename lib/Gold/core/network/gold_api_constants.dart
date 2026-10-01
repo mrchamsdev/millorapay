@@ -74,6 +74,7 @@ class GoldApiConstants {
   // ── Company ───────────────────────────────────────────────────────────────
   static String get addCompany => '$baseUrl/company/';
   static String get allCompanies => '$baseUrl/company/all';
+  static String get companyListAll => '$baseUrl/company/list/all';
   static String singleCompany(String id) => '$baseUrl/company/$id';
   static String deleteCompany(String id) => '$baseUrl/company/soft/$id';
 

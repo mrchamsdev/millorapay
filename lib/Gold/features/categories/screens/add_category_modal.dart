@@ -362,6 +362,7 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                     label: 'Category Name',
                     controller: _nameController,
                     hint: 'Enter here',
+                    textAlign: TextAlign.start,
                     errorText: _hasAttemptedSubmit ? _validateName(_nameController.text) : null,
                   ),
                   Padding(
@@ -388,9 +389,8 @@ class _AddCategoryModalState extends State<AddCategoryModal> {
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                Flexible(
+                                Expanded(
                                   child: Text(
                                     _selectedFilePath != null
                                         ? _selectedFilePath!.split('/').last

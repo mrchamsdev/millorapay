@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:currency_picker/currency_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 
@@ -11,6 +12,7 @@ class CurrencyPickerScreen extends StatefulWidget {
 }
 
 class _CurrencyPickerScreenState extends State<CurrencyPickerScreen> {
+  static const String _recentCurrenciesKey = 'recent_selected_currencies';
   final CurrencyService _currencyService = CurrencyService();
   late List<Currency> _allCurrencies;
   List<Currency> _filteredCurrencies = [];
@@ -23,16 +25,66 @@ class _CurrencyPickerScreenState extends State<CurrencyPickerScreen> {
     _allCurrencies = _currencyService.getAll();
     _filteredCurrencies = _allCurrencies;
 
-    // Prefill some popular / recent currencies
-    final usd = _currencyService.findByCode('USD');
-    final eur = _currencyService.findByCode('EUR');
-    final inr = _currencyService.findByCode('INR');
-    final gbp = _currencyService.findByCode('GBP');
+    _loadRecentCurrencies();
+  }
 
-    if (inr != null) _recentCurrencies.add(inr);
-    if (usd != null) _recentCurrencies.add(usd);
-    if (eur != null) _recentCurrencies.add(eur);
-    if (gbp != null) _recentCurrencies.add(gbp);
+  Future<void> _loadRecentCurrencies() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedCodes = prefs.getStringList(_recentCurrenciesKey);
+
+      final List<String> codesToLoad;
+      if (savedCodes != null && savedCodes.isNotEmpty) {
+        codesToLoad = savedCodes;
+      } else {
+        // Initial popular currencies if no history yet
+        codesToLoad = ['INR', 'USD', 'EUR', 'GBP'];
+      }
+
+      final List<Currency> loaded = [];
+      for (final code in codesToLoad) {
+        final currency = _currencyService.findByCode(code);
+        if (currency != null && !loaded.any((c) => c.code == currency.code)) {
+          loaded.add(currency);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _recentCurrencies.clear();
+          _recentCurrencies.addAll(loaded);
+        });
+      }
+    } catch (_) {
+      if (_recentCurrencies.isEmpty) {
+        final inr = _currencyService.findByCode('INR');
+        final usd = _currencyService.findByCode('USD');
+        final eur = _currencyService.findByCode('EUR');
+        final gbp = _currencyService.findByCode('GBP');
+        if (inr != null) _recentCurrencies.add(inr);
+        if (usd != null) _recentCurrencies.add(usd);
+        if (eur != null) _recentCurrencies.add(eur);
+        if (gbp != null) _recentCurrencies.add(gbp);
+      }
+    }
+  }
+
+  Future<void> _saveRecentCurrency(String code) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      List<String> saved = prefs.getStringList(_recentCurrenciesKey) ?? ['INR', 'USD', 'EUR', 'GBP'];
+      saved.remove(code);
+      saved.insert(0, code);
+      if (saved.length > 5) {
+        saved = saved.sublist(0, 5);
+      }
+      await prefs.setStringList(_recentCurrenciesKey, saved);
+    } catch (_) {}
+  }
+
+  void _onCurrencySelected(Currency currency) {
+    _saveRecentCurrency(currency.code);
+    Navigator.pop(context, currency);
   }
 
   @override
@@ -174,7 +226,7 @@ class _CurrencyPickerScreenState extends State<CurrencyPickerScreen> {
 
   Widget _buildCurrencyTile(Currency currency) {
     return GestureDetector(
-      onTap: () => Navigator.pop(context, currency),
+      onTap: () => _onCurrencySelected(currency),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14.0),
