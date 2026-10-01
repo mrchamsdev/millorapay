@@ -38,6 +38,63 @@ class BranchRepository {
     return [];
   }
 
+  Future<(List<Company>, List<Branch>)?> getCompanyAndBranchList() async {
+    final service = GoldGetService(
+      GoldApiConstants.companyListAll,
+    );
+
+    final result = await service.data();
+    final statusCode = result[0] as int;
+    final data = result[1];
+
+    debugPrint('Company List All GET Response ($statusCode): $data');
+
+    if (statusCode >= 200 && statusCode < 300) {
+      try {
+        dynamic decodedData = data;
+        if (data is String) {
+          decodedData = jsonDecode(data);
+        }
+
+        Map<String, dynamic>? dataMap;
+        if (decodedData is Map) {
+          final rawData = decodedData['data'];
+          if (rawData is Map) {
+            dataMap = Map<String, dynamic>.from(rawData);
+          } else {
+            dataMap = Map<String, dynamic>.from(decodedData);
+          }
+        }
+
+        if (dataMap != null) {
+          List<Company> companies = [];
+          List<Branch> branches = [];
+
+          final rawCompanies = dataMap['companies'] ?? dataMap['company'];
+          if (rawCompanies is List) {
+            companies = rawCompanies
+                .whereType<Map>()
+                .map((e) => Company.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+          }
+
+          final rawBranches = dataMap['branches'] ?? dataMap['branch'];
+          if (rawBranches is List) {
+            branches = rawBranches
+                .whereType<Map>()
+                .map((e) => Branch.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+          }
+
+          return (companies, branches);
+        }
+      } catch (e, stack) {
+        debugPrint('Error parsing company list all: $e\n$stack');
+      }
+    }
+    return null;
+  }
+
   Future<(bool, String?)> createCompany(Map<String, dynamic> payload) async {
     final service = GoldPostAuthService(
       GoldApiConstants.addCompany,

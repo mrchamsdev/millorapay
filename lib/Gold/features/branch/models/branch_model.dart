@@ -50,7 +50,13 @@ class Branch {
   factory Branch.fromJson(Map<String, dynamic> json) {
     return Branch(
       id: json['_id']?.toString() ?? json['id']?.toString() ?? json['branchId']?.toString(),
-      companyId: json['companyId'] is int ? json['companyId'] : int.tryParse(json['companyId']?.toString() ?? ''),
+      companyId: json['companyId'] is int
+          ? json['companyId']
+          : int.tryParse(
+              json['companyId']?.toString() ??
+              json['company_id']?.toString() ??
+              (json['company'] is Map ? json['company']['id']?.toString() ?? '' : ''),
+            ),
       name: json['name']?.toString() ?? json['branchName']?.toString() ?? '',
       sector: json['sector']?.toString() ?? '',
       country: json['country']?.toString(),
@@ -120,7 +126,7 @@ class Company {
   factory Company.fromJson(Map<String, dynamic> json) {
     return Company(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? json['companyId']?.toString() ?? json['_id']?.toString() ?? ''),
-      companyName: json['companyName']?.toString(),
+      companyName: json['companyName']?.toString() ?? json['name']?.toString(),
       legalEntityName: json['legalEntityName']?.toString(),
       companyType: json['companyType']?.toString(),
       sector: json['sector']?.toString(),
