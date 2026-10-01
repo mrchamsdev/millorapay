@@ -140,6 +140,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void initState() {
     super.initState();
     _dateController.text = _formatDateForMask(_selectedDate);
+    if (!_isEditMode) {
+      final currentUserName = GoldSession.instance.userName;
+      final currentUserId = GoldSession.instance.userId;
+      if (currentUserName != null && currentUserName.isNotEmpty) {
+        _paidByController.text = currentUserName;
+        if (currentUserId != null) {
+          _selectedPaidByUser = User(
+            id: currentUserId,
+            name: currentUserName,
+            email: GoldSession.instance.userEmail,
+            phoneNumber: GoldSession.instance.userPhone,
+            role: GoldSession.instance.userRole,
+          );
+        }
+      }
+    }
     _fetchCompaniesAndBranches();
     _fetchUsers();
     if (_isEditMode) {
@@ -155,6 +171,26 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         setState(() {
           _users = list;
           _isLoadingUsers = false;
+
+          if (!_isEditMode) {
+            final currentUserId = GoldSession.instance.userId;
+            final currentUserName = GoldSession.instance.userName;
+
+            User? loggedInUser;
+            if (currentUserId != null) {
+              loggedInUser = list.where((u) => u.id == currentUserId).firstOrNull;
+            }
+            if (loggedInUser == null && currentUserName != null && currentUserName.isNotEmpty) {
+              loggedInUser = list.where((u) => u.name.trim().toLowerCase() == currentUserName.trim().toLowerCase()).firstOrNull;
+            }
+
+            if (loggedInUser != null) {
+              _selectedPaidByUser = loggedInUser;
+              _paidByController.text = loggedInUser.name;
+            } else if (_paidByController.text.isEmpty && currentUserName != null && currentUserName.isNotEmpty) {
+              _paidByController.text = currentUserName;
+            }
+          }
         });
       }
     } catch (_) {
@@ -584,7 +620,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Select Branch',
+                          'Select Company / Branch',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -1135,7 +1171,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     if (_selectedCompany == null) {
       GoldDialogs.showSnackBar(
         context,
-        'Please select a branch',
+        'Please select a company / branch',
         isError: true,
       );
       return;
@@ -1228,7 +1264,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           note: _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
-          paidBy: _selectedPaidByUser?.id,
+          paidBy: _selectedPaidByUser?.id ?? GoldSession.instance.userId,
           branchId: _selectedBranch != null ? int.tryParse(_selectedBranch!.id ?? '') : null,
           quantity: _quantityController.text.trim().isEmpty
               ? null
@@ -1254,7 +1290,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           note: _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
-          paidBy: _selectedPaidByUser?.id,
+          paidBy: _selectedPaidByUser?.id ?? GoldSession.instance.userId,
           branchId: _selectedBranch != null ? int.tryParse(_selectedBranch!.id ?? '') : null,
           quantity: _quantityController.text.trim().isEmpty
               ? null
@@ -1404,7 +1440,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         color: AppColors.textPrimary,
                       ),
                       decoration: InputDecoration(
-                        hintText: 'Select Branch',
+                        hintText: 'Select Company / Branch',
                         hintStyle: const TextStyle(
                           color: Color(0xFFB0B1B4),
                           fontSize: 14,
@@ -1439,47 +1475,49 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 iconWidget: _buildCategoryIcon(),
                 showBorder: true,
                 onIconTap: _openCategoryPicker,
-                child: GestureDetector(
-                  onTap: _openCategoryPicker,
-                  child: AbsorbPointer(
-                    child: TextField(
-                      controller: _categoryController,
-                      readOnly: true,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Select Category',
-                        hintStyle: const TextStyle(
-                          color: Color(0xFFB0B1B4),
-                          fontSize: 14,
-                        ),
-                        enabledBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        focusedBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(
-                            color: AppColors.primaryBlue,
-                            width: 1.5,
-                          ),
-                        ),
-                        filled: false,
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 8,
-                        ),
-                        suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                        suffixIcon: _selectedCategory != null
-                            ? const Icon(
-                                Icons.check_circle,
-                                color: AppColors.primaryBlue,
-                                size: 18,
-                              )
-                            : null,
+                child: TextField(
+                  controller: _categoryController,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                  onTap: () {
+                    if (_selectedCategory == null) {
+                      _openCategoryPicker();
+                    }
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Select Category',
+                    hintStyle: const TextStyle(
+                      color: Color(0xFFB0B1B4),
+                      fontSize: 14,
+                    ),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(
+                        color: AppColors.primaryBlue,
+                        width: 1.5,
                       ),
                     ),
+                    filled: false,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                    ),
+                    suffixIconConstraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                    suffixIcon: _selectedCategory != null
+                        ? GestureDetector(
+                            onTap: _openCategoryPicker,
+                            child: const Icon(
+                              Icons.check_circle,
+                              color: AppColors.primaryBlue,
+                              size: 18,
+                            ),
+                          )
+                        : null,
                   ),
                 ),
               ),
